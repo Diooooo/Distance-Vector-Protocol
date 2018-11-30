@@ -1,0 +1,8 @@
+//
+// Created by bilin on 11/29/18.
+//
+
+#ifndef BILINSHI_CONNECTION_MANAGER_H
+#define BILINSHI_CONNECTION_MANAGER_H
+
+#endif //BILINSHI_CONNECTION_MANAGER_H

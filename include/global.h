@@ -13,8 +13,6 @@
 
 #define ERROR(err_msg) {perror(err_msg); exit(EXIT_FAILURE);}
 
-uint16_t CONTROL_PORT;
-
 #define AUTHOR 0x00
 #define INIT 0x01
 #define ROUTING_TABLE 0x02

@@ -33,7 +33,8 @@
 
 int main(int argc, char **argv) {
     /*Start Here*/
-    sscanf(argv[1], "%" SCNu16, &CONTROL_PORT);
-    run();
+    uint16_t control_port;
+    sscanf(argv[1], "%" SCNu16, &control_port);
+    run(control_port);
     return 0;
 }

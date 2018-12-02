@@ -6,9 +6,8 @@
 #define BILINSHI_CONNECTION_MANAGER_H
 
 #include <stdint.h>
-int control_socket, router_socket, data_socket;
 
-void run();
+void run(uint16_t control_port);
 
 struct __attribute__((__packed__)) Route_Content {
     uint32_t router_ip;

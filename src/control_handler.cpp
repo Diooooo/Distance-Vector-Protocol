@@ -18,7 +18,7 @@ using namespace std;
 
 vector<int> control_socket_list;
 
-int create_control_sock() {
+int create_control_sock(uint16_t control_port) {
     int sock;
     struct sockaddr_in control_addr;
     socklen_t addrlen = sizeof(control_addr);
@@ -27,13 +27,13 @@ int create_control_sock() {
     if (sock < 0) ERROR("socket() failed");
 
     /* Make socket re-usable */
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (int[]) {1}, sizeof(int)) < 0) ERROR("setsockopt() failed");
+//    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (int[]) {1}, sizeof(int)) < 0) ERROR("setsockopt() failed");
 
     bzero(&control_addr, sizeof(control_addr));
 
     control_addr.sin_family = AF_INET;
     control_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    control_addr.sin_port = htons(CONTROL_PORT);
+    control_addr.sin_port = htons(control_port);
 
     if (bind(sock, (struct sockaddr *) &control_addr, sizeof(control_addr)) < 0) ERROR("bind() failed");
 

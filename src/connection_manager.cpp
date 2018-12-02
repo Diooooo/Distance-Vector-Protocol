@@ -9,13 +9,15 @@
 #include "../include/control_handler.h"
 #include "../include/data_handler.h"
 
+int control_socket, router_socket, data_socket;
+
 void main_loop();
 
 fd_set master_list, watch_list;
 int head_fd;
 
-void run() {
-    control_socket = create_control_sock();
+void run(uint16_t control_port) {
+    control_socket = create_control_sock(control_port);
 
     //router_socket and data_socket will be initialized after INIT from controller
 

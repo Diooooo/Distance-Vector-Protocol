@@ -7,7 +7,9 @@
 
 #define AUTHOR_STATEMENT "I, bilinshi, have read and understood the course academic integrity policy."
 
-int create_control_sock();
+#include <stdint.h>
+
+int create_control_sock(uint16_t control_port);
 
 int new_control_conn(int sock_index);
 

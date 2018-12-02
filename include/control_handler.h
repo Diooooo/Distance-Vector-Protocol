@@ -15,7 +15,7 @@ bool isControl(int sock_index);
 
 bool control_recv_hook(int sock_index);
 
-void author();
+void author(int sock_index);
 
 void init();
 

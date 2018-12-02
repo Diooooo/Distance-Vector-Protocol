@@ -111,7 +111,7 @@ bool control_recv_hook(int sock_index) {
     /* Triage on control_code */
     switch (control_code) {
         case AUTHOR:
-            author();
+            author(sock_index);
             break;
         case INIT:
             init();
@@ -148,8 +148,24 @@ bool control_recv_hook(int sock_index) {
     return true;
 }
 
-void author() {
+void author(int sock_index) {
+    uint16_t payload_len, response_len;
+    char *ctrl_response_header, *ctrl_response_payload, *ctrl_response;
 
+    payload_len = sizeof(AUTHOR_STATEMENT) - 1; // Discount the NULL character
+    ctrl_response_payload = (char *) malloc(payload_len);
+    memcpy(ctrl_response_payload, AUTHOR_STATEMENT, payload_len);
+
+    ctrl_response_header = create_response_header(sock_index, 0, 0, payload_len);
+
+    response_len = CONTROL_HEADER_SIZE + payload_len;
+    ctrl_response = (char *) malloc(response_len);
+    /* Copy Header */
+    memcpy(ctrl_response, ctrl_response_header, CONTROL_HEADER_SIZE);
+    /* Copy Payload */
+    memcpy(ctrl_response + CONTROL_HEADER_SIZE, ctrl_response_payload, payload_len);
+
+    sendALL(sock_index, ctrl_response, response_len);
 }
 
 void init() {

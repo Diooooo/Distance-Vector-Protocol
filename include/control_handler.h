@@ -8,8 +8,21 @@
 #define AUTHOR_STATEMENT "I, bilinshi, have read and understood the course academic integrity policy."
 
 #include <stdint.h>
+#include <vector>
+
+
+struct Routing{
+    int dest_id;
+    int dest_route_port;
+    int dest_data_port;
+    int dest_cost;
+    uint32_t dest_ip;
+    int next_hop_id;
+};
 
 int create_control_sock(uint16_t control_port);
+
+int create_route_sock(uint16_t router_port);
 
 int new_control_conn(int sock_index);
 
@@ -19,7 +32,7 @@ bool control_recv_hook(int sock_index);
 
 void author(int sock_index);
 
-void init();
+void init(int sock_index, char *payload);
 
 void routing_table();
 

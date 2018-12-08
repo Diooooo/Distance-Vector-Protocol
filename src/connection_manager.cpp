@@ -9,7 +9,12 @@
 #include "../include/control_handler.h"
 #include "../include/data_handler.h"
 
-int control_socket, router_socket, data_socket;
+#include <vector>
+
+using namespace std;
+
+int control_socket;
+extern vector<Routing> table;
 
 void main_loop();
 

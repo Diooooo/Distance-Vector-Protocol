@@ -226,14 +226,19 @@ void init(int sock_index, char *payload) {
 
         memcpy(&router_id, payload + head, sizeof(router_id));
         head += 2;
+        cout << "router id: " << router_id << endl;
         memcpy(&router_port, payload + head, sizeof(router_port));
         head += 2;
+        cout << "router port: " << router_port << endl;
         memcpy(&data_port, payload + head, sizeof(data_port));
         head += 2;
+        cout << "data port: " << data_port << endl;
         memcpy(&cost, payload + head, sizeof(cost));
         head += 2;
+        cout << "cost: " << cost << endl;
         memcpy(&router_ip, payload + head, sizeof(router_ip));
         head += 4;
+        cout << "router ip: " << router_ip << endl;
         if (cost == 0) {
             my_id = router_id;
             my_router_port = router_port;

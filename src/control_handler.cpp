@@ -270,7 +270,7 @@ void init(int sock_index, char *payload) {
         bzero(init_payload, INIT_PAYLOAD_SIZE);
     }
 
-    ctrl_response = create_response_header(sock_index, 1, 0, CONTROL_HEADER_SIZE);
+    ctrl_response = create_response_header(sock_index, 1, 0, 0);
     sendALL(sock_index, ctrl_response, CONTROL_HEADER_SIZE);
 }
 

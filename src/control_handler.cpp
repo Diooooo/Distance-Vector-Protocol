@@ -215,28 +215,37 @@ void init(int sock_index, char *payload) {
 
     int head = 0;
     memcpy(&routers, payload + head, sizeof(routers));
+    routers = ntohs(routers);
     head += 2;
+    cout << "routers number: " << routers << endl;
     memcpy(&time_interval, payload + head, sizeof(time_interval));
+    time_interval = ntohs(time_interval);
     head += 2;
+    cout << "time interval: " << time_interval << endl;
     routers_number = routers;
     time_peroid = time_interval;
 
-    while (payload + head != NULL) {
-        memcpy(init_payload, payload + head, INIT_PAYLOAD_SIZE);
+    for (int i = 0; i < routers_number; i++) {
+//        memcpy(init_payload, payload + head, INIT_PAYLOAD_SIZE);
 
         memcpy(&router_id, payload + head, sizeof(router_id));
+        router_id = ntohs(router_id);
         head += 2;
         cout << "router id: " << router_id << endl;
         memcpy(&router_port, payload + head, sizeof(router_port));
+        router_port = ntohs(router_port);
         head += 2;
         cout << "router port: " << router_port << endl;
         memcpy(&data_port, payload + head, sizeof(data_port));
+        data_port = ntohs(data_port);
         head += 2;
         cout << "data port: " << data_port << endl;
         memcpy(&cost, payload + head, sizeof(cost));
+        cost = ntohs(cost);
         head += 2;
         cout << "cost: " << cost << endl;
         memcpy(&router_ip, payload + head, sizeof(router_ip));
+        router_ip = ntohl(router_ip);
         head += 4;
         cout << "router ip: " << router_ip << endl;
         if (cost == 0) {

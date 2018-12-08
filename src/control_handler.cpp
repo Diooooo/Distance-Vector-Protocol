@@ -15,6 +15,7 @@
 #include "../include/utils.h"
 #include "../include/connection_manager.h"
 #include "../include/data_handler.h"
+#include <iostream>
 
 using namespace std;
 
@@ -25,6 +26,8 @@ uint32_t my_ip;
 uint16_t my_router_port;
 uint16_t my_data_port;
 uint16_t my_id;
+uint16_t routers_number, time_peroid;
+
 int create_control_sock(uint16_t control_port) {
     int sock;
     struct sockaddr_in control_addr;
@@ -34,7 +37,8 @@ int create_control_sock(uint16_t control_port) {
     if (sock < 0) ERROR("socket() failed");
 
     /* Make socket re-usable */
-//    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (int[]) {1}, sizeof(int)) < 0) ERROR("setsockopt() failed");
+    int opt = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const void *) &opt, sizeof(opt)) < 0) ERROR("setsockopt() failed");
 
     bzero(&control_addr, sizeof(control_addr));
 
@@ -49,24 +53,25 @@ int create_control_sock(uint16_t control_port) {
     return sock;
 }
 
-int create_route_sock(uint16_t router_port){
+int create_route_sock(uint16_t router_port) {
     int sock;
-    struct sockaddr_in control_addr;
-    socklen_t addrlen = sizeof(control_addr);
+    struct sockaddr_in router_addr;
+    socklen_t addrlen = sizeof(router_addr);
 
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) ERROR("socket() failed");
 
     /* Make socket re-usable */
-//    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (int[]) {1}, sizeof(int)) < 0) ERROR("setsockopt() failed");
+    int opt = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const void *) &opt, sizeof(opt)) < 0) ERROR("setsockopt() failed");
 
-    bzero(&control_addr, sizeof(control_addr));
+    bzero(&router_addr, sizeof(router_addr));
 
-    control_addr.sin_family = AF_INET;
-    control_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    control_addr.sin_port = htons(router_port);
+    router_addr.sin_family = AF_INET;
+    router_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    router_addr.sin_port = htons(router_port);
 
-    if (bind(sock, (struct sockaddr *) &control_addr, sizeof(control_addr)) < 0) ERROR("bind() failed");
+    if (bind(sock, (struct sockaddr *) &router_addr, sizeof(router_addr)) < 0) ERROR("bind() failed");
 
     return sock;
 }
@@ -213,6 +218,8 @@ void init(int sock_index, char *payload) {
     head += 2;
     memcpy(&time_interval, payload + head, sizeof(time_interval));
     head += 2;
+    routers_number = routers;
+    time_peroid = time_interval;
 
     while (payload + head != NULL) {
         memcpy(init_payload, payload + head, INIT_PAYLOAD_SIZE);
@@ -232,7 +239,9 @@ void init(int sock_index, char *payload) {
             my_router_port = router_port;
             my_data_port = data_port;
             my_ip = router_ip;
+            cout << "creating router socket..." << endl;
             router_socket = create_route_sock(router_port);
+            cout << "creating data socket..." << endl;
             data_socket = create_data_sock(data_port);
             routing_content.next_hop_id = my_id;
         } else {

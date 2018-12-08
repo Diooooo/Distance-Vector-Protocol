@@ -33,7 +33,8 @@ int create_data_sock(uint16_t data_port) {
     if (sock < 0) ERROR("socket() failed");
 
     /* Make socket re-usable */
-//    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (int[]) {1}, sizeof(int)) < 0) ERROR("setsockopt() failed");
+    int opt = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const void *) &opt, sizeof(opt)) < 0) ERROR("setsockopt() failed");
 
     bzero(&data_addr, sizeof(data_addr));
 

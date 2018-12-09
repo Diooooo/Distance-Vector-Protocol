@@ -6,6 +6,8 @@
 #define BILINSHI_CONNECTION_MANAGER_H
 
 #include <stdint.h>
+#include <sys/select.h>
+#include <time.h>
 
 extern int control_socket, router_socket, data_socket;
 extern uint32_t my_ip;
@@ -15,6 +17,8 @@ extern uint16_t my_id;
 extern uint16_t routers_number, time_peroid;
 extern int head_fd;
 void run(uint16_t control_port);
+extern fd_set master_list;
+extern struct timeval tv;
 
 struct __attribute__((__packed__)) Route_Content {
     uint32_t router_ip;

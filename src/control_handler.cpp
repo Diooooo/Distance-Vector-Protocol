@@ -258,10 +258,12 @@ void init(int sock_index, char *payload) {
 
             cout << "creating router socket..." << endl;
             router_socket = create_route_sock(router_port);
+            FD_SET(router_socket, &master_list);
             if (router_socket > head_fd) head_fd = router_socket;
 
             cout << "creating data socket..." << endl;
             data_socket = create_data_sock(data_port);
+            FD_SET(data_socket, &master_list);
             if (data_socket > head_fd) head_fd = data_socket;
 
             routing_content.next_hop_id = my_id;

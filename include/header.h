@@ -15,7 +15,9 @@
 #define LAST_PACKET 0x8000
 #define NOT_LAST_PACKET 0x0000
 
-#define DATA_PAYLOAD 1000
+#define DATA_PAYLOAD 1024
+
+#define INF 65535
 
 #include <stdint.h>
 

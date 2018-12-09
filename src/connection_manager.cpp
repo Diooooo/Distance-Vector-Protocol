@@ -2,7 +2,6 @@
 // Created by bilin on 11/29/18.
 //
 
-#include <sys/select.h>
 
 #include "../include/connection_manager.h"
 #include "../include/global.h"
@@ -15,6 +14,7 @@ using namespace std;
 
 int control_socket;
 extern vector<Routing> table;
+struct timeval tv;
 
 void main_loop();
 

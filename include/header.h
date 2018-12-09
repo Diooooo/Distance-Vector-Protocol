@@ -7,12 +7,15 @@
 
 #define CONTROL_HEADER_SIZE 8
 #define INIT_PAYLOAD_SIZE 12
+#define DATA_HEADER_SIZE 12
 #define CONTROL_CODE_OFFSET 0x04
 #define PAYLOAD_LEN_OFFSET 0x06
 
 
 #define LAST_PACKET 0x8000
 #define NOT_LAST_PACKET 0x0000
+
+#define DATA_PAYLOAD 1000
 
 #include <stdint.h>
 
@@ -53,5 +56,5 @@ struct __attribute__((__packed__)) Init_Payload {
 };
 
 char *create_response_header(int sock_index, uint8_t control_code, uint8_t response_code, uint16_t payload_len);
-
+char *create_data_header(uint32_t dest_ip, uint8_t transfer_id, uint8_t ttl, uint16_t seq_num, int fin);
 #endif //PROJECT_CONTROL_HEADER_H

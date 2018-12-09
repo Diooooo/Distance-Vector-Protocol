@@ -31,3 +31,24 @@ char *create_response_header(int sock_index, uint8_t control_code, uint8_t respo
 
     return buffer;
 }
+
+char *create_data_header(uint32_t dest_ip, uint8_t transfer_id, uint8_t ttl, uint16_t seq_num, int fin){
+    char *buffer;
+
+    struct Data_Header *data_header;
+
+    buffer = (char *)malloc(sizeof(char) * DATA_HEADER_SIZE);
+    data_header = (struct Data_Header *) buffer;
+
+    data_header->dest_ip = htonl(dest_ip);
+    data_header->transfer_id = transfer_id;
+    data_header->ttl = ttl;
+    data_header->seq_num = htons(seq_num);
+    if (fin == 1){
+        data_header->fin_padding = LAST_PACKET;
+    }else{
+        data_header->fin_padding = NOT_LAST_PACKET;
+    }
+
+    return buffer;
+}

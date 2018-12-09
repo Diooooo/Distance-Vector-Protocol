@@ -15,4 +15,6 @@ int new_data_conn(int sock_index);
 
 void remove_data_conn(int sock_index);
 
+bool data_recv_hook(int sock_index);
+
 #endif //BILINSHI_DATA_HANDLER_H

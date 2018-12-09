@@ -13,6 +13,7 @@ extern uint16_t my_router_port;
 extern uint16_t my_data_port;
 extern uint16_t my_id;
 extern uint16_t routers_number, time_peroid;
+extern int head_fd;
 void run(uint16_t control_port);
 
 struct __attribute__((__packed__)) Route_Content {

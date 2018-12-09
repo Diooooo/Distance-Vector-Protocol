@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <strings.h>
+#include <string.h>
 #include <vector>
 #include <unistd.h>
 #include <algorithm>
@@ -72,4 +73,63 @@ void remove_data_conn(int sock_index) {
     }
 
     close(sock_index);
+}
+
+bool data_recv_hook(int sock_index) {
+    char *data_header, *data_payload;
+    uint32_t dest_ip;
+    uint8_t transfer_id;
+    uint8_t ttl;
+    uint16_t seq_num;
+    uint32_t fin;
+
+    data_header = (char *) malloc(sizeof(char) * DATA_HEADER_SIZE);
+    bzero(data_header, DATA_HEADER_SIZE);
+
+    if (recvALL(sock_index, data_header, DATA_HEADER_SIZE) < 0) {
+        remove_data_conn(sock_index);
+        free(data_header);
+        return false;
+    }
+    memcpy(&dest_ip, data_header, sizeof(dest_ip));
+    dest_ip = ntohl(dest_ip);
+    memcpy(&transfer_id, data_header + 4, sizeof(transfer_id));
+    memcpy(&ttl, data_header + 5, sizeof(ttl));
+    memcpy(&seq_num, data_header + 6, sizeof(seq_num));
+    seq_num = ntohs(seq_num);
+    memcpy(&fin, data_header + 8, sizeof(fin));
+
+    free(data_header);
+
+    data_payload = (char *) malloc(sizeof(char) * DATA_PAYLOAD);
+    bzero(data_payload, DATA_PAYLOAD);
+
+    if (recvALL(sock_index, data_payload, DATA_PAYLOAD) < 0) {
+        remove_data_conn(sock_index);
+        free(data_payload);
+        return false;
+    }
+
+    if (fin == LAST_DATA_PACKET) {
+        // store payload in last_packet_list
+    } else {
+        // replace payload in penultimate_packet_list
+    }
+    if (dest_ip == my_ip && ttl == 1) {
+        free(data_payload);
+        return true;
+    }
+    ttl--;
+
+    char *next_data_header = create_data_header(dest_ip, transfer_id, ttl, seq_num, fin);
+    char *next_packet = (char *)malloc(DATA_HEADER_SIZE + DATA_PAYLOAD);
+    memcpy(next_packet, next_data_header, DATA_HEADER_SIZE);
+    memcpy(next_packet + DATA_HEADER_SIZE, data_payload, DATA_PAYLOAD);
+
+    // need to decide which router to send
+    // if not connected yet, create new socket and add to master_list
+    sendALL(expected_socket, next_packet, DATA_HEADER_SIZE + DATA_PAYLOAD);
+
+
+    return true;
 }

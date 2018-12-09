@@ -204,24 +204,26 @@ void author(int sock_index) {
 
 void init(int sock_index, char *payload) {
     char *ctrl_response;
-    char *init_payload;
+//    char *init_payload;
     struct Routing routing_content;
     uint16_t routers, time_interval;
     uint16_t router_id, router_port, data_port, cost;
     uint32_t router_ip;
 
-    init_payload = (char *) malloc(sizeof(char) * INIT_PAYLOAD_SIZE);
-    bzero(init_payload, INIT_PAYLOAD_SIZE);
+//    init_payload = (char *) malloc(sizeof(char) * INIT_PAYLOAD_SIZE);
+//    bzero(init_payload, INIT_PAYLOAD_SIZE);
 
     int head = 0;
     memcpy(&routers, payload + head, sizeof(routers));
     routers = ntohs(routers);
     head += 2;
     cout << "routers number: " << routers << endl;
+
     memcpy(&time_interval, payload + head, sizeof(time_interval));
     time_interval = ntohs(time_interval);
     head += 2;
     cout << "time interval: " << time_interval << endl;
+
     routers_number = routers;
     time_peroid = time_interval;
 
@@ -231,32 +233,37 @@ void init(int sock_index, char *payload) {
         memcpy(&router_id, payload + head, sizeof(router_id));
         router_id = ntohs(router_id);
         head += 2;
-        cout << "router id: " << router_id << endl;
+//        cout << "router id: " << router_id << endl;
         memcpy(&router_port, payload + head, sizeof(router_port));
         router_port = ntohs(router_port);
         head += 2;
-        cout << "router port: " << router_port << endl;
+//        cout << "router port: " << router_port << endl;
         memcpy(&data_port, payload + head, sizeof(data_port));
         data_port = ntohs(data_port);
         head += 2;
-        cout << "data port: " << data_port << endl;
+//        cout << "data port: " << data_port << endl;
         memcpy(&cost, payload + head, sizeof(cost));
         cost = ntohs(cost);
         head += 2;
-        cout << "cost: " << cost << endl;
+//        cout << "cost: " << cost << endl;
         memcpy(&router_ip, payload + head, sizeof(router_ip));
         router_ip = ntohl(router_ip);
         head += 4;
-        cout << "router ip: " << router_ip << endl;
+//        cout << "router ip: " << router_ip << endl;
         if (cost == 0) {
             my_id = router_id;
             my_router_port = router_port;
             my_data_port = data_port;
             my_ip = router_ip;
+
             cout << "creating router socket..." << endl;
             router_socket = create_route_sock(router_port);
+            if (router_socket > head_fd) head_fd = router_socket;
+
             cout << "creating data socket..." << endl;
             data_socket = create_data_sock(data_port);
+            if (data_socket > head_fd) head_fd = data_socket;
+
             routing_content.next_hop_id = my_id;
         } else {
             routing_content.next_hop_id = -1;
@@ -267,7 +274,7 @@ void init(int sock_index, char *payload) {
         routing_content.dest_cost = cost;
         routing_content.dest_ip = router_ip;
         table.push_back(routing_content);
-        bzero(init_payload, INIT_PAYLOAD_SIZE);
+//        bzero(init_payload, INIT_PAYLOAD_SIZE);
     }
 
     ctrl_response = create_response_header(sock_index, 1, 0, 0);

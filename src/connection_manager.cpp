@@ -68,7 +68,11 @@ void main_loop() {
 
                     /* data_socket */
                 else if (sock_index == data_socket) {// TCP, need to create link
-                    //new_data_conn(sock_index);
+                    fdaccept = new_data_conn(sock_index);
+
+                    /* Add to watched socket list */
+                    FD_SET(fdaccept, &master_list);
+                    if (fdaccept > head_fd) head_fd = fdaccept;
                 }
 
                     /* Existing connection */
@@ -78,8 +82,11 @@ void main_loop() {
                         if (!control_recv_hook(sock_index)) FD_CLR(sock_index, &master_list);
                     } else if (isData(sock_index)) {
                         // when switch datagram, first check if connection exist, if not, connect() first, then send()
+                        if (!data_recv_hook(sock_index)) FD_CLR(sock_index, &master_list);
 
-                    } else ERROR("Unknown socket index");
+                    } else {
+                        ERROR("Unknown socket index");
+                    }
                 }
             }
         }

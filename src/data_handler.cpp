@@ -128,7 +128,7 @@ bool data_recv_hook(int sock_index) {
 
     // need to decide which router to send
     // if not connected yet, create new socket and add to master_list
-    sendALL(expected_socket, next_packet, DATA_HEADER_SIZE + DATA_PAYLOAD);
+//    sendALL(expected_socket, next_packet, DATA_HEADER_SIZE + DATA_PAYLOAD);
 
 
     return true;

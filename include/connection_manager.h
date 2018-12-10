@@ -19,6 +19,9 @@ extern int head_fd;
 void run(uint16_t control_port);
 extern fd_set master_list;
 extern struct timeval tv;
+extern struct timeval next_send_time;
+extern bool first_time;
+
 
 struct __attribute__((__packed__)) Route_Content {
     uint32_t router_ip;

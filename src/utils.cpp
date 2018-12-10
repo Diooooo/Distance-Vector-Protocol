@@ -25,3 +25,25 @@ ssize_t sendALL(int sock_index, char *buffer, ssize_t nbytes) {
 
     return bytes;
 }
+
+struct timeval diff_tv(struct timeval tv1, struct timeval tv2) {
+    struct timeval tv_diff;
+    tv_diff.tv_sec = tv1.tv_sec - tv2.tv_sec;
+    tv_diff.tv_usec = tv1.tv_usec - tv2.tv_usec;
+    if (tv_diff.tv_usec < 0) {
+        tv_diff.tv_sec--;
+        tv_diff.tv_usec += 1000000;
+    }
+    return tv_diff;
+}
+
+struct timeval add_tv(struct timeval tv1, struct timeval tv2) {
+    struct timeval tv_add;
+    tv_add.tv_sec = tv1.tv_sec + tv2.tv_sec;
+    tv_add.tv_usec = tv1.tv_usec + tv2.tv_usec;
+    if (tv_add.tv_usec > 1000000) {
+        tv_add.tv_sec++;
+        tv_add.tv_usec -= 1000000;
+    }
+    return tv_add;
+}

@@ -20,7 +20,9 @@
 using namespace std;
 
 vector<int> control_socket_list;
+vector<Route_Neighbor> neighbors;
 vector<Routing> table;
+vector<Timeout> routers_timeout;
 int router_socket;
 uint32_t my_ip;
 uint16_t my_router_port;
@@ -101,6 +103,41 @@ void remove_control_conn(int sock_index) {
     close(sock_index);
 }
 
+int new_route_conn(uint32_t remote_ip, uint16_t remote_port, uint16_t remote_id) {
+    int sock;
+    struct sockaddr_in remote_router_addr;
+    socklen_t addrlen = sizeof(remote_router_addr);
+
+    struct Route_Neighbor neighbor;
+
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) ERROR("socket() failed");
+
+
+    bzero(&remote_router_addr, sizeof(remote_router_addr));
+
+    remote_router_addr.sin_family = AF_INET;
+    remote_router_addr.sin_addr.s_addr = htonl(remote_ip);
+    remote_router_addr.sin_port = htons(remote_port);
+
+    if (connect(sock, (struct sockaddr *) &remote_router_addr, sizeof(remote_router_addr)) < 0) ERROR(
+            "connect() failed");
+    neighbor.router_id = remote_id;
+    neighbor.socket = sock;
+    neighbors.push_back(neighbor);
+    return sock;
+}
+
+void remove_route_conn(uint16_t router_id) {
+    for (int i = 0; i < neighbors.size(); i++) {
+        if (neighbors[i].router_id == router_id) {
+            close(neighbors[i].socket);
+            neighbors.erase(neighbors.begin() + i);
+            break;
+        }
+    }
+}
+
 bool isControl(int sock_index) {
     vector<int>::iterator it = find(control_socket_list.begin(), control_socket_list.end(), sock_index);
     return it != control_socket_list.end();
@@ -151,13 +188,13 @@ bool control_recv_hook(int sock_index) {
             init(sock_index, cntrl_payload);
             break;
         case ROUTING_TABLE:
-            routing_table();
+            routing_table(sock_index);
             break;
         case UPDATE:
-            update();
+            update(sock_index, cntrl_payload);
             break;
         case CRASH:
-            crash();
+            crash(sock_index);
             break;
         case SENDFILE:
             send_file();
@@ -209,6 +246,7 @@ void init(int sock_index, char *payload) {
     uint16_t routers, time_interval;
     uint16_t router_id, router_port, data_port, cost;
     uint32_t router_ip;
+    struct Timeout router_timeout;
 
 //    init_payload = (char *) malloc(sizeof(char) * INIT_PAYLOAD_SIZE);
 //    bzero(init_payload, INIT_PAYLOAD_SIZE);
@@ -268,7 +306,12 @@ void init(int sock_index, char *payload) {
 
             routing_content.next_hop_id = my_id;
         } else {
-            routing_content.next_hop_id = -1;
+            if (cost < INF) {// neighbors
+                routing_content.next_hop_id = router_id;
+                new_route_conn(router_ip, router_port, router_id);
+            } else {// unreachable
+                routing_content.next_hop_id = INF;
+            }
         }
         routing_content.dest_id = router_id;
         routing_content.dest_route_port = router_port;
@@ -277,21 +320,87 @@ void init(int sock_index, char *payload) {
         routing_content.dest_ip = router_ip;
         table.push_back(routing_content);
 //        bzero(init_payload, INIT_PAYLOAD_SIZE);
-    }
+        router_timeout.router_id = router_id;
+        router_timeout.is_connected = false;
+        routers_timeout.push_back(router_timeout);
 
+    }
+    first_time = false;
+    gettimeofday(&next_send_time, NULL);
+    next_send_time.tv_sec += time_peroid;
+    tv.tv_sec = time_peroid;
+    tv.tv_usec = 0;
     ctrl_response = create_response_header(sock_index, 1, 0, 0);
     sendALL(sock_index, ctrl_response, CONTROL_HEADER_SIZE);
 }
 
-void routing_table() {
+void routing_table(int sock_index) {
+    uint16_t payload_len, response_len;
+    char *ctrl_response_header, *ctrl_response_payload, *ctrl_response;
 
+    payload_len = table.size() * ROUTING_TABLE_CONTENT_SIZE;
+    ctrl_response_payload = (char *) malloc(sizeof(char) * payload_len);
+    bzero(ctrl_response_payload, payload_len);
+
+    int offset = 0;
+    uint16_t id, next_hop, cost;
+    for (int i = 0; i < table.size(); i++) {
+        id = htons(table[i].dest_id);
+        memcpy(ctrl_response_payload + offset, &id, sizeof(id));
+        offset += 4;
+
+        next_hop = htons(table[i].next_hop_id);
+        memcpy(ctrl_response_payload + offset, &next_hop, sizeof(next_hop));
+        offset += 2;
+
+        cost = htons(table[i].dest_cost);
+        memcpy(ctrl_response_payload + offset, &cost, sizeof(cost));
+        offset += 2;
+    }
+
+
+    ctrl_response_header = create_response_header(sock_index, 2, 0, payload_len);
+
+    response_len = CONTROL_HEADER_SIZE + payload_len;
+    ctrl_response = (char *) malloc(response_len);
+    /* Copy Header */
+    memcpy(ctrl_response, ctrl_response_header, CONTROL_HEADER_SIZE);
+    /* Copy Payload */
+    memcpy(ctrl_response + CONTROL_HEADER_SIZE, ctrl_response_payload, payload_len);
+
+    sendALL(sock_index, ctrl_response, response_len);
 }
 
-void update() {
+void update(int sock_index, char *payload) {
+    char *ctrl_response;
 
+    uint16_t router_id, cost;
+
+    memcpy(&router_id, payload, sizeof(router_id));
+    router_id = ntohs(router_id);
+    memcpy(&cost, payload + 2, sizeof(cost));
+    cost = ntohs(cost);
+
+    for (int i = 0; i < table.size(); i++) {
+        if (table[i].dest_id == router_id) {
+            table[i].dest_cost = cost;
+            for (int j = 0; j < routers_timeout.size(); j++) {
+                if (routers_timeout[j].router_id == router_id) {
+                    if (cost == INF) {
+                        routers_timeout[j].is_connected = false;
+                    } else {
+                        routers_timeout[j].is_connected = true;
+                    }
+                }
+            }
+        }
+    }
+
+    ctrl_response = create_response_header(sock_index, 3, 0, 0);
+    sendALL(sock_index, ctrl_response, CONTROL_HEADER_SIZE);
 }
 
-void crash() {
+void crash(int sock_index) {
 
 }
 
@@ -309,4 +418,164 @@ void last_data_packet() {
 
 void penultimate_data_packet() {
 
+}
+
+void update_routing_table(int sock_index) {
+    char *routing_header, *payload;
+    struct sockaddr_in route_addr;
+    uint16_t update_num, src_router_port;
+    uint32_t src_ip;
+    uint16_t received_router_id = INF;
+    int received_router_pos;
+
+    socklen_t addr_len = sizeof(struct sockaddr_in);
+    route_addr.sin_family = AF_INET;
+    route_addr.sin_port = htons(my_router_port);
+    route_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+
+    routing_header = (char *) malloc(sizeof(char) * ROUTING_HEADER_SIZE);
+    bzero(routing_header, ROUTING_HEADER_SIZE);
+
+    if (recvfrom(sock_index, routing_header, ROUTING_HEADER_SIZE, 0, (struct sockaddr *) &route_addr, &addr_len) < 0) {
+        cout << "receive routing message fail!" << endl;
+        return;
+    }
+
+    int offset = 0;
+
+    memcpy(&update_num, routing_header + offset, sizeof(update_num));
+    update_num = ntohs(update_num);
+    offset += 2;
+
+    memcpy(&src_router_port, routing_header + offset, sizeof(src_router_port));
+    src_router_port = ntohs(src_router_port);
+    offset += 2;
+
+    memcpy(&src_ip, routing_header + offset, sizeof(src_ip));
+    src_ip = ntohl(src_ip);
+
+    for (int i = 0; i < table.size(); i++) {
+        if (table[i].dest_ip == src_ip) {
+            received_router_id = table[i].dest_id;
+            received_router_pos = i;
+            break;
+        }
+    }
+    if (received_router_id == INF) {
+        cout << "can't find router from routing table, this should not happen" << endl;
+    }
+    if (table[received_router_pos].dest_cost == INF) {
+        cout << "it's not possible to receive routing packet from non-neighbors"
+             << endl;
+    }
+    if (update_num > 0) {
+        payload = (char *) malloc(sizeof(char) * update_num * ROUTING_CONTENT_SIZE);
+    }
+    if (payload != NULL) {
+        if (recvfrom(sock_index, payload, (size_t) ROUTING_CONTENT_SIZE * update_num, 0,
+                     (struct sockaddr *) &route_addr, &addr_len) < 0) {
+            cout << "receive routing message fail!" << endl;
+            return;
+        }
+        offset = 0;
+        uint32_t remote_router_ip;
+        uint16_t remote_router_port, remote_router_id, cost;
+        for (int i = 0; i < update_num; i++) {
+            memcpy(&remote_router_ip, payload + offset, sizeof(remote_router_ip));
+            remote_router_ip = ntohl(remote_router_ip);
+            offset += 4;
+
+            memcpy(&remote_router_port, payload + offset, sizeof(remote_router_port));
+            remote_router_port = ntohs(remote_router_port);
+            offset += 4;
+
+            memcpy(&remote_router_id, payload + offset, sizeof(remote_router_id));
+            remote_router_id = ntohs(remote_router_id);
+            offset += 2;
+
+            memcpy(&cost, payload + offset, sizeof(cost));
+            cost = ntohs(cost);
+            offset += 2;
+
+            if (cost == INF) {
+                continue;
+            }
+            for (int j = 0; j < table.size(); j++) {
+                if (table[j].dest_id == remote_router_id) {
+                    if (table[i].dest_cost > table[received_router_pos].dest_cost + cost) {
+                        table[i].dest_cost = table[received_router_pos].dest_cost + cost;
+                        table[i].next_hop_id = received_router_id;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    // update timeout list
+    struct timeval cur_tv;
+    gettimeofday(&cur_tv, NULL);
+    cur_tv.tv_sec += 3 * time_peroid;
+
+    for (int i = 0; i < routers_timeout.size(); i++) {
+        if (routers_timeout[i].router_id == received_router_id) {
+            routers_timeout[i].expired_time = cur_tv;
+            routers_timeout[i].is_connected = true;
+            break;
+        }
+    }
+}
+
+void send_dv() {
+    char *dv;
+    dv = create_distance_vector();
+    int update_num = (int) table.size();
+    for (int i = 0; i < neighbors.size(); i++) {
+        if (sendALL(neighbors[i].socket, dv, ROUTING_HEADER_SIZE + update_num * ROUTING_CONTENT_SIZE) < 0) {
+            cout << "Send DV fail" << endl;
+        }
+    }
+}
+
+char *create_distance_vector() {
+    char *buffer, *header, *payload;
+    struct Route_Header *dv_header;
+    uint16_t update_num = (uint16_t) table.size();
+
+    buffer = (char *) malloc(sizeof(char) * (ROUTING_HEADER_SIZE + update_num * ROUTING_CONTENT_SIZE));
+    bzero(buffer, (size_t) (ROUTING_HEADER_SIZE + update_num * ROUTING_CONTENT_SIZE));
+
+    header = (char *) malloc(sizeof(char) * ROUTING_HEADER_SIZE);
+    dv_header = (struct Route_Header *) header;
+    dv_header->num_update = update_num;
+    dv_header->source_port = my_router_port;
+    dv_header->source_ip = my_ip;
+    memcpy(buffer, header, ROUTING_HEADER_SIZE);
+
+    payload = (char *) malloc(sizeof(char) * (update_num * ROUTING_CONTENT_SIZE));
+    bzero(payload, (size_t) (update_num * ROUTING_CONTENT_SIZE));
+
+    int offset = 0;
+    uint32_t ip;
+    uint16_t port, id, cost;
+    for (int i = 0; i < update_num; i++) {
+        ip = htonl(table[i].dest_ip);
+        memcpy(payload + offset, &ip, sizeof(ip));
+        offset += 4;
+
+        port = htons(table[i].dest_route_port);
+        memcpy(payload + offset, &port, sizeof(port));
+        offset += 4;
+
+        id = htons(table[i].dest_id);
+        memcpy(payload + offset, &id, sizeof(id));
+        offset += 2;
+
+        cost = htons(table[i].dest_cost);
+        memcpy(payload + offset, &cost, sizeof(cost));
+        offset += 2;
+    }
+    memcpy(buffer + ROUTING_HEADER_SIZE, payload, (size_t) update_num * ROUTING_CONTENT_SIZE);
+
+    return buffer;
 }

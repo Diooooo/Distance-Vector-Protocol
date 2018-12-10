@@ -9,22 +9,42 @@
 
 #include <stdint.h>
 #include <vector>
+#include <sys/time.h>
 
-
-struct Routing{
-    int dest_id;
-    int dest_route_port;
-    int dest_data_port;
-    int dest_cost;
+struct Routing {
+    uint16_t dest_id;
+    uint16_t dest_route_port;
+    uint16_t dest_data_port;
+    uint16_t dest_cost;
     uint32_t dest_ip;
-    int next_hop_id;
+    uint16_t next_hop_id;
 };
+
+struct Timeout {
+    int router_id;
+    bool is_connected;
+    struct timeval expired_time;
+};
+
+struct Route_Neighbor {
+    uint16_t router_id;
+    int socket;
+};
+
+extern std::vector<Routing> table;
+extern std::vector<Timeout> routers_timeout;
 
 int create_control_sock(uint16_t control_port);
 
 int create_route_sock(uint16_t router_port);
 
 int new_control_conn(int sock_index);
+
+void remove_control_conn(int sock_index);
+
+int new_route_conn(uint32_t remote_ip, uint16_t remote_port, uint16_t remote_id);
+
+void remove_route_conn(uint16_t router_id);
 
 bool isControl(int sock_index);
 
@@ -34,11 +54,11 @@ void author(int sock_index);
 
 void init(int sock_index, char *payload);
 
-void routing_table();
+void routing_table(int sock_index);
 
-void update();
+void update(int sock_index, char *payload);
 
-void crash();
+void crash(int sock_index);
 
 void send_file();
 
@@ -47,5 +67,11 @@ void send_file_stats();
 void last_data_packet();
 
 void penultimate_data_packet();
+
+void update_routing_table(int sock_index);
+
+void send_dv();
+
+char *create_distance_vector();
 
 #endif //BILINSHI_CONTROL_HANDLER_H

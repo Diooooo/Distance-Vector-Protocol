@@ -7,14 +7,17 @@
 #include "../include/global.h"
 #include "../include/control_handler.h"
 #include "../include/data_handler.h"
+#include "../include/utils.h"
 
 #include <vector>
 
 using namespace std;
 
 int control_socket;
-extern vector<Routing> table;
+
 struct timeval tv;
+struct timeval next_send_time;
+bool first_time = true;
 
 void main_loop();
 
@@ -42,10 +45,52 @@ void main_loop() {
 
     while (true) {
         watch_list = master_list;
-        selret = select(head_fd + 1, &watch_list, NULL, NULL, NULL);
+        if (first_time) {
+            selret = select(head_fd + 1, &watch_list, NULL, NULL, NULL);
+        } else {
+            selret = select(head_fd + 1, &watch_list, NULL, NULL, &tv);
+        }
 
         if (selret < 0) ERROR("select failed.");
+        if (selret == 0) { // timeout, send or disconnect
+            struct timeval cur;
+            gettimeofday(&cur, NULL);
+            struct timeval diff;
+            diff = diff_tv(cur, next_send_time);
+            if (diff.tv_sec >= 0 || diff.tv_usec >= 0) {
+                next_send_time.tv_sec = cur.tv_sec + time_peroid;
+                next_send_time.tv_usec = cur.tv_usec;
+                send_dv();
+                tv = diff_tv(next_send_time, cur);
+            }
+            // don't forget update tv
 
+            // next, router expired setting
+            for (int i = 0; i < routers_timeout.size(); i++) {
+                if (!routers_timeout[i].is_connected) { // ignore disconnected routers
+                    continue;
+                }
+                diff = diff_tv(cur, routers_timeout[i].expired_time);
+                if (diff.tv_sec >= 0 || diff.tv_usec >= 0) { // some routers timeout
+                    routers_timeout[i].is_connected = false;
+                    // update routing table
+                    for (int j = 0; j < table.size(); j++) {
+                        if (table[j].dest_id == routers_timeout[i].router_id) {
+                            table[j].dest_cost = INF;
+                            table[j].next_hop_id = INF;
+                            break;
+                        }
+                    }
+                    remove_route_conn(routers_timeout[i].router_id);
+                } else { // choose tv=min(expected-cur)
+                    diff = diff_tv(tv, diff_tv(routers_timeout[i].expired_time, cur));
+                    if (diff.tv_sec >= 0 || diff.tv_usec >= 0) {
+                        tv = diff_tv(routers_timeout[i].expired_time, cur);
+                    }
+                }
+            }
+            continue;
+        }
         /* Loop through file descriptors to check which ones are ready */
         for (sock_index = 0; sock_index <= head_fd; sock_index += 1) {
 
@@ -63,7 +108,8 @@ void main_loop() {
                     /* router_socket */
                 else if (sock_index == router_socket) {
                     // UDP, don't need to create connect link, directly update routing table
-                    //call handler that will call recvfrom() .....
+                    // call handler that will call recvfrom() .....
+                    update_routing_table(sock_index);
                 }
 
                     /* data_socket */

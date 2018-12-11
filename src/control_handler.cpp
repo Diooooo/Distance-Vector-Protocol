@@ -426,6 +426,9 @@ void update(int sock_index, char *payload) {
 void crash(int sock_index) {
     char *ctrl_response;
 
+    ctrl_response = create_response_header(sock_index, 4, 0, 0);
+    sendALL(sock_index, ctrl_response, CONTROL_HEADER_SIZE);
+
     cout << "close all sockets!" << endl;
     // route sockets
     for (int i = 0; i < neighbors.size(); i++){
@@ -436,9 +439,6 @@ void crash(int sock_index) {
     // data sockets
     close_all_data_sock();
     close(data_socket);
-
-    ctrl_response = create_response_header(sock_index, 4, 0, 0);
-    sendALL(sock_index, ctrl_response, CONTROL_HEADER_SIZE);
 
     // control sockets
     for (int i = 0; i < control_socket_list.size(); i++){

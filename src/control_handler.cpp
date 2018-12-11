@@ -269,6 +269,11 @@ void init(int sock_index, char *payload) {
     routers_number = routers;
     time_peroid = time_interval;
 
+    /* init neighbor expire time to inifinity */
+    struct timeval tmp_tv;
+    gettimeofday(&tmp_tv, NULL);
+    tmp_tv.tv_sec += 1000 * time_peroid;
+
     for (int i = 0; i < routers_number; i++) {
 //        memcpy(init_payload, payload + head, INIT_PAYLOAD_SIZE);
 
@@ -337,6 +342,7 @@ void init(int sock_index, char *payload) {
         /* init timeout list */
         router_timeout.router_id = router_id;
         router_timeout.is_connected = false;
+        router_timeout.expired_time = tmp_tv;
         routers_timeout.push_back(router_timeout);
 
     }
@@ -518,6 +524,7 @@ void update_routing_table(int sock_index) {
     if (table[received_router_pos].dest_cost == INF) {
         cout << "it's not possible to receive routing packet from non-neighbors"
              << endl;
+        cout << "this may be the delay dv from neighbor, but it doesn't matter, we return" << endl;
     }
 
     if (update_num > 0) { // malloc payload, always goes into
@@ -529,6 +536,10 @@ void update_routing_table(int sock_index) {
         if (recvfrom(sock_index, payload, (size_t) ROUTING_CONTENT_SIZE * update_num, 0,
                      (struct sockaddr *) &route_addr, &addr_len) < 0) {
             cout << "receive routing message fail!" << endl;
+            return;
+        }
+
+        if (table[received_router_pos].dest_cost == INF) { // to free the socket buffer
             return;
         }
 

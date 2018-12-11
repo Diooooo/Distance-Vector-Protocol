@@ -10,6 +10,7 @@
 #include "../include/utils.h"
 
 #include <vector>
+#include <iostream>
 
 using namespace std;
 
@@ -25,7 +26,7 @@ fd_set master_list, watch_list;
 int head_fd;
 
 void run(uint16_t control_port) {
-    control_socket = create_control_sock(control_port);
+    control_socket = create_control_sock(control_port); // create first socket, bind to control port to listen
 
     //router_socket and data_socket will be initialized after INIT from controller
 
@@ -34,9 +35,9 @@ void run(uint16_t control_port) {
 
     /* Register the control socket */
     FD_SET(control_socket, &master_list);
-    head_fd = control_socket;
+    head_fd = control_socket; // head_fd set to maximum, it can be changed anytime a new socket is created
 
-    main_loop();
+    main_loop(); // main function
 }
 
 
@@ -45,44 +46,65 @@ void main_loop() {
 
     while (true) {
         watch_list = master_list;
-        if (first_time) {
+        if (first_time) { // if routing table is not initialized, we can only deal with command from controller
             selret = select(head_fd + 1, &watch_list, NULL, NULL, NULL);
         } else {
+            /**
+             * now we have routing table, we wait for "tv" time to trigger the next event.
+             * it can be either send dv or delete neighbor and update routing table(if we didn't receive dv from
+             * it for 3T time)
+             * */
             selret = select(head_fd + 1, &watch_list, NULL, NULL, &tv);
         }
 
         if (selret < 0) ERROR("select failed.");
+
         if (selret == 0) { // timeout, send or disconnect
+            cout << "timeout!" << endl;
+            /* get current time*/
             struct timeval cur;
             gettimeofday(&cur, NULL);
-            struct timeval diff;
-            diff = diff_tv(cur, next_send_time);
-            if (diff.tv_sec >= 0 || diff.tv_usec >= 0) {
+
+            struct timeval diff; // it store the difference of 2 tv, will be used many times
+
+            diff = diff_tv(cur, next_send_time); // get (cur-send_time)
+            if (diff.tv_sec >= 0 || diff.tv_usec >= 0) { // if current time reach the next expected sending time
+                /* update next expected sending time to (cur+T) */
                 next_send_time.tv_sec = cur.tv_sec + time_peroid;
                 next_send_time.tv_usec = cur.tv_usec;
-                send_dv();
-                tv = diff_tv(next_send_time, cur);
+
+                send_dv(); // send dv to neighbors
+
+                tv = diff_tv(next_send_time, cur); // waiting time is set to T (temporally)
             }
             // don't forget update tv
 
             // next, router expired setting
-            for (int i = 0; i < routers_timeout.size(); i++) {
+            for (int i = 0; i < routers_timeout.size(); i++) { // go through all routers in the network
                 if (!routers_timeout[i].is_connected) { // ignore disconnected routers
                     continue;
                 }
+
                 diff = diff_tv(cur, routers_timeout[i].expired_time);
-                if (diff.tv_sec >= 0 || diff.tv_usec >= 0) { // some routers timeout
+                if (diff.tv_sec >= 0 || diff.tv_usec >= 0) { // this router timeout
+                    /* first set this router unreachable, then set the cost to this router to infinity */
                     routers_timeout[i].is_connected = false;
-                    // update routing table
-                    for (int j = 0; j < table.size(); j++) {
+
+                    cout << "router: " << routers_timeout[i].router_id << " timeout!" << endl;
+
+                    for (int j = 0; j < table.size(); j++) { // find this router in routing table
                         if (table[j].dest_id == routers_timeout[i].router_id) {
+                            /* sent cost to infinity, set next hop to infinity means it's unreachable */
                             table[j].dest_cost = INF;
                             table[j].next_hop_id = INF;
                             break;
                         }
                     }
+                    /* we can only receive dv from neighbors, so this router must be my neighbor,
+                     * now remove it from my neighbors list */
                     remove_route_conn(routers_timeout[i].router_id);
-                } else { // choose tv=min(expected-cur)
+                } else { // this neighbor does't timeout
+                    /* waiting time should be min(T, expire_time - cur) */
                     diff = diff_tv(tv, diff_tv(routers_timeout[i].expired_time, cur));
                     if (diff.tv_sec >= 0 || diff.tv_usec >= 0) {
                         tv = diff_tv(routers_timeout[i].expired_time, cur);
@@ -98,7 +120,7 @@ void main_loop() {
 
                 /* control_socket */
                 if (sock_index == control_socket) {// TCP, need to create a new connection
-                    fdaccept = new_control_conn(sock_index);
+                    fdaccept = new_control_conn(sock_index); // create a tcp socket to handle controller commands
 
                     /* Add to watched socket list */
                     FD_SET(fdaccept, &master_list);
@@ -107,8 +129,7 @@ void main_loop() {
 
                     /* router_socket */
                 else if (sock_index == router_socket) {
-                    // UDP, don't need to create connect link, directly update routing table
-                    // call handler that will call recvfrom() .....
+                    /* receive dv from neighbors, should update routing table and waiting time(if needed) */
                     update_routing_table(sock_index);
                 }
 

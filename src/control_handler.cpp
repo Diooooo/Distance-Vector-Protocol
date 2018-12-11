@@ -131,6 +131,7 @@ int new_route_conn(uint32_t remote_ip, uint16_t remote_port, uint16_t remote_id)
 void remove_route_conn(uint16_t router_id) {
     for (int i = 0; i < neighbors.size(); i++) {
         if (neighbors[i].router_id == router_id) {
+            cout << "remove router " << router_id << " from neighbors list!" << endl;
             close(neighbors[i].socket);
             neighbors.erase(neighbors.begin() + i);
             break;
@@ -179,6 +180,7 @@ bool control_recv_hook(int sock_index) {
         }
     }
 
+    cout << "receive controller message: " << control_code << endl;
     /* Triage on control_code */
     switch (control_code) {
         case AUTHOR:
@@ -252,6 +254,8 @@ void init(int sock_index, char *payload) {
 //    bzero(init_payload, INIT_PAYLOAD_SIZE);
 
     int head = 0;
+
+    /* following is read information from payload */
     memcpy(&routers, payload + head, sizeof(routers));
     routers = ntohs(routers);
     head += 2;
@@ -272,28 +276,34 @@ void init(int sock_index, char *payload) {
         router_id = ntohs(router_id);
         head += 2;
 //        cout << "router id: " << router_id << endl;
+
         memcpy(&router_port, payload + head, sizeof(router_port));
         router_port = ntohs(router_port);
         head += 2;
 //        cout << "router port: " << router_port << endl;
+
         memcpy(&data_port, payload + head, sizeof(data_port));
         data_port = ntohs(data_port);
         head += 2;
 //        cout << "data port: " << data_port << endl;
+
         memcpy(&cost, payload + head, sizeof(cost));
         cost = ntohs(cost);
         head += 2;
 //        cout << "cost: " << cost << endl;
+
         memcpy(&router_ip, payload + head, sizeof(router_ip));
         router_ip = ntohl(router_ip);
         head += 4;
 //        cout << "router ip: " << router_ip << endl;
-        if (cost == 0) {
+
+        if (cost == 0) { // cost=0 means this is me
             my_id = router_id;
             my_router_port = router_port;
             my_data_port = data_port;
             my_ip = router_ip;
 
+            /* create router listening socket and data listening socket */
             cout << "creating router socket..." << endl;
             router_socket = create_route_sock(router_port);
             FD_SET(router_socket, &master_list);
@@ -304,15 +314,18 @@ void init(int sock_index, char *payload) {
             FD_SET(data_socket, &master_list);
             if (data_socket > head_fd) head_fd = data_socket;
 
+            /* this is request */
             routing_content.next_hop_id = my_id;
         } else {
             if (cost < INF) {// neighbors
                 routing_content.next_hop_id = router_id;
+                /* create udp sockets connecting to neighbors */
                 new_route_conn(router_ip, router_port, router_id);
             } else {// unreachable
                 routing_content.next_hop_id = INF;
             }
         }
+        /*add info into routing table*/
         routing_content.dest_id = router_id;
         routing_content.dest_route_port = router_port;
         routing_content.dest_data_port = data_port;
@@ -320,16 +333,21 @@ void init(int sock_index, char *payload) {
         routing_content.dest_ip = router_ip;
         table.push_back(routing_content);
 //        bzero(init_payload, INIT_PAYLOAD_SIZE);
+
+        /* init timeout list */
         router_timeout.router_id = router_id;
         router_timeout.is_connected = false;
         routers_timeout.push_back(router_timeout);
 
     }
+    /* after init, we can set waiting time for select(), at first, wait T and send dv */
     first_time = false;
     gettimeofday(&next_send_time, NULL);
     next_send_time.tv_sec += time_peroid;
     tv.tv_sec = time_peroid;
     tv.tv_usec = 0;
+
+    /* response to controller */
     ctrl_response = create_response_header(sock_index, 1, 0, 0);
     sendALL(sock_index, ctrl_response, CONTROL_HEADER_SIZE);
 }
@@ -344,10 +362,11 @@ void routing_table(int sock_index) {
 
     int offset = 0;
     uint16_t id, next_hop, cost;
+    /* copy routing table to payload */
     for (int i = 0; i < table.size(); i++) {
         id = htons(table[i].dest_id);
         memcpy(ctrl_response_payload + offset, &id, sizeof(id));
-        offset += 4;
+        offset += 4; // id + padding
 
         next_hop = htons(table[i].next_hop_id);
         memcpy(ctrl_response_payload + offset, &next_hop, sizeof(next_hop));
@@ -358,7 +377,7 @@ void routing_table(int sock_index) {
         offset += 2;
     }
 
-
+    /* generate succeed header */
     ctrl_response_header = create_response_header(sock_index, 2, 0, payload_len);
 
     response_len = CONTROL_HEADER_SIZE + payload_len;
@@ -376,6 +395,7 @@ void update(int sock_index, char *payload) {
 
     uint16_t router_id, cost;
 
+    /* get info from payload */
     memcpy(&router_id, payload, sizeof(router_id));
     router_id = ntohs(router_id);
     memcpy(&cost, payload + 2, sizeof(cost));
@@ -383,16 +403,19 @@ void update(int sock_index, char *payload) {
 
     for (int i = 0; i < table.size(); i++) {
         if (table[i].dest_id == router_id) {
+            /* update cost of router path, NOT SURE whether we only need to update one cost */
             table[i].dest_cost = cost;
-            for (int j = 0; j < routers_timeout.size(); j++) {
-                if (routers_timeout[j].router_id == router_id) {
-                    if (cost == INF) {
-                        routers_timeout[j].is_connected = false;
-                    } else {
-                        routers_timeout[j].is_connected = true;
-                    }
-                }
-            }
+//            for (int j = 0; j < routers_timeout.size(); j++) {
+//                if (routers_timeout[j].router_id == router_id) {
+//                    /*  */
+//                    if (cost == INF) {
+//                        routers_timeout[j].is_connected = false;
+//                    } else {
+//                        routers_timeout[j].is_connected = true;
+//                    }
+//                }
+//            }
+            break;
         }
     }
 
@@ -401,7 +424,29 @@ void update(int sock_index, char *payload) {
 }
 
 void crash(int sock_index) {
+    char *ctrl_response;
 
+    cout << "close all sockets!" << endl;
+    // route sockets
+    for (int i = 0; i < neighbors.size(); i++){
+        close(neighbors[i].socket);
+    }
+    close(router_socket);
+
+    // data sockets
+    close_all_data_sock();
+    close(data_socket);
+
+    ctrl_response = create_response_header(sock_index, 4, 0, 0);
+    sendALL(sock_index, ctrl_response, CONTROL_HEADER_SIZE);
+
+    // control sockets
+    for (int i = 0; i < control_socket_list.size(); i++){
+        close(control_socket_list[i].socket);
+    }
+    close(control_socket);
+
+    exit(0);
 }
 
 void send_file() {
@@ -431,9 +476,9 @@ void update_routing_table(int sock_index) {
     socklen_t addr_len = sizeof(struct sockaddr_in);
     route_addr.sin_family = AF_INET;
     route_addr.sin_port = htons(my_router_port);
-    route_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    route_addr.sin_addr.s_addr = htonl(INADDR_ANY); // don't need to assign a special ip
 
-
+    /* first read header */
     routing_header = (char *) malloc(sizeof(char) * ROUTING_HEADER_SIZE);
     bzero(routing_header, ROUTING_HEADER_SIZE);
 
@@ -444,24 +489,29 @@ void update_routing_table(int sock_index) {
 
     int offset = 0;
 
+    /* number of update fields */
     memcpy(&update_num, routing_header + offset, sizeof(update_num));
     update_num = ntohs(update_num);
     offset += 2;
 
+    /* source router port */
     memcpy(&src_router_port, routing_header + offset, sizeof(src_router_port));
     src_router_port = ntohs(src_router_port);
     offset += 2;
 
+    /* source router ip */
     memcpy(&src_ip, routing_header + offset, sizeof(src_ip));
     src_ip = ntohl(src_ip);
 
-    for (int i = 0; i < table.size(); i++) {
+    for (int i = 0; i < table.size(); i++) { // find id of received router
         if (table[i].dest_ip == src_ip) {
             received_router_id = table[i].dest_id;
             received_router_pos = i;
+            cout << "receiving dv from router " << received_router_id << "..." << endl;
             break;
         }
     }
+
     if (received_router_id == INF) {
         cout << "can't find router from routing table, this should not happen" << endl;
     }
@@ -469,18 +519,23 @@ void update_routing_table(int sock_index) {
         cout << "it's not possible to receive routing packet from non-neighbors"
              << endl;
     }
-    if (update_num > 0) {
+
+    if (update_num > 0) { // malloc payload, always goes into
         payload = (char *) malloc(sizeof(char) * update_num * ROUTING_CONTENT_SIZE);
     }
-    if (payload != NULL) {
+
+    if (payload != NULL) { // always executes
+        /* receive dv payload */
         if (recvfrom(sock_index, payload, (size_t) ROUTING_CONTENT_SIZE * update_num, 0,
                      (struct sockaddr *) &route_addr, &addr_len) < 0) {
             cout << "receive routing message fail!" << endl;
             return;
         }
+
         offset = 0;
         uint32_t remote_router_ip;
         uint16_t remote_router_port, remote_router_id, cost;
+        /* read payload and update routing table */
         for (int i = 0; i < update_num; i++) {
             memcpy(&remote_router_ip, payload + offset, sizeof(remote_router_ip));
             remote_router_ip = ntohl(remote_router_ip);
@@ -498,12 +553,14 @@ void update_routing_table(int sock_index) {
             cost = ntohs(cost);
             offset += 2;
 
-            if (cost == INF) {
+            if (cost == INF) { // if cost is infinity, there is no need to update anything
                 continue;
             }
             for (int j = 0; j < table.size(); j++) {
+                /* D_x(y) = min(d_x(v) + d_v(y)), v is this neighbor */
                 if (table[j].dest_id == remote_router_id) {
                     if (table[i].dest_cost > table[received_router_pos].dest_cost + cost) {
+                        /* if updated, the next hop from x to y is v */
                         table[i].dest_cost = table[received_router_pos].dest_cost + cost;
                         table[i].next_hop_id = received_router_id;
                     }
@@ -512,6 +569,7 @@ void update_routing_table(int sock_index) {
             }
         }
     }
+
     // update timeout list
     struct timeval cur_tv;
     gettimeofday(&cur_tv, NULL);
@@ -519,6 +577,7 @@ void update_routing_table(int sock_index) {
 
     for (int i = 0; i < routers_timeout.size(); i++) {
         if (routers_timeout[i].router_id == received_router_id) {
+            /* since we receive dv from this neighbor, we need to update the expired time */
             routers_timeout[i].expired_time = cur_tv;
             routers_timeout[i].is_connected = true;
             break;
@@ -527,8 +586,9 @@ void update_routing_table(int sock_index) {
 }
 
 void send_dv() {
+    cout << "send dv to neighbors!" << endl;
     char *dv;
-    dv = create_distance_vector();
+    dv = create_distance_vector(); // generate dv packet
     int update_num = (int) table.size();
     for (int i = 0; i < neighbors.size(); i++) {
         if (sendALL(neighbors[i].socket, dv, ROUTING_HEADER_SIZE + update_num * ROUTING_CONTENT_SIZE) < 0) {
@@ -540,32 +600,36 @@ void send_dv() {
 char *create_distance_vector() {
     char *buffer, *header, *payload;
     struct Route_Header *dv_header;
-    uint16_t update_num = (uint16_t) table.size();
+    uint16_t update_num = (uint16_t) table.size(); // number of updating fields, should be 5 in this project
 
+    /* buffer: dv, size: header + num * content_size */
     buffer = (char *) malloc(sizeof(char) * (ROUTING_HEADER_SIZE + update_num * ROUTING_CONTENT_SIZE));
     bzero(buffer, (size_t) (ROUTING_HEADER_SIZE + update_num * ROUTING_CONTENT_SIZE));
 
+    /*header: dv header, size: 8*/
     header = (char *) malloc(sizeof(char) * ROUTING_HEADER_SIZE);
     dv_header = (struct Route_Header *) header;
-    dv_header->num_update = update_num;
-    dv_header->source_port = my_router_port;
-    dv_header->source_ip = my_ip;
+    dv_header->num_update = htons(update_num);
+    dv_header->source_port = htons(my_router_port);
+    dv_header->source_ip = htonl(my_ip);
     memcpy(buffer, header, ROUTING_HEADER_SIZE);
 
+    /* payload: dv payload, size: num * 12 */
     payload = (char *) malloc(sizeof(char) * (update_num * ROUTING_CONTENT_SIZE));
     bzero(payload, (size_t) (update_num * ROUTING_CONTENT_SIZE));
 
+    /* copy content to payload */
     int offset = 0;
     uint32_t ip;
     uint16_t port, id, cost;
-    for (int i = 0; i < update_num; i++) {
+    for (int i = 0; i < update_num; i++) { // again, there is update_num of content to be added
         ip = htonl(table[i].dest_ip);
         memcpy(payload + offset, &ip, sizeof(ip));
         offset += 4;
 
         port = htons(table[i].dest_route_port);
         memcpy(payload + offset, &port, sizeof(port));
-        offset += 4;
+        offset += 4; // port + padding
 
         id = htons(table[i].dest_id);
         memcpy(payload + offset, &id, sizeof(id));

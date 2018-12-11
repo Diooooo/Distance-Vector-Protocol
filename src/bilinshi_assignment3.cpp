@@ -34,7 +34,7 @@
 int main(int argc, char **argv) {
     /*Start Here*/
     uint16_t control_port;
-    sscanf(argv[1], "%hu", &control_port);
-    run(control_port);
+    sscanf(argv[1], "%hu", &control_port); // get control port from command
+    run(control_port); // run program
     return 0;
 }

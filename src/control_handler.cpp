@@ -591,6 +591,7 @@ void send_dv() {
     dv = create_distance_vector(); // generate dv packet
     int update_num = (int) table.size();
     for (int i = 0; i < neighbors.size(); i++) {
+        cout << "send dv to router " << neighbors[i].router_id << endl;
         if (sendALL(neighbors[i].socket, dv, ROUTING_HEADER_SIZE + update_num * ROUTING_CONTENT_SIZE) < 0) {
             cout << "Send DV fail" << endl;
         }

@@ -442,7 +442,7 @@ void crash(int sock_index) {
 
     // control sockets
     for (int i = 0; i < control_socket_list.size(); i++){
-        close(control_socket_list[i].socket);
+        close(control_socket_list[i]);
     }
     close(control_socket);
 

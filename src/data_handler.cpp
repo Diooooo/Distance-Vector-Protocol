@@ -136,6 +136,6 @@ bool data_recv_hook(int sock_index) {
 
 void close_all_data_sock(){
     for (int i = 0; i < data_socket_list.size(); i++){
-        close(data_socket_list[i].socket);
+        close(data_socket_list[i]);
     }
 }

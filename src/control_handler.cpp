@@ -302,7 +302,7 @@ void init(int sock_index, char *payload) {
             my_router_port = router_port;
             my_data_port = data_port;
             my_ip = router_ip;
-
+            cout << "my router id: " << my_id << endl;
             /* create router listening socket and data listening socket */
             cout << "creating router socket..." << endl;
             router_socket = create_route_sock(router_port);
@@ -431,7 +431,7 @@ void crash(int sock_index) {
 
     cout << "close all sockets!" << endl;
     // route sockets
-    for (int i = 0; i < neighbors.size(); i++){
+    for (int i = 0; i < neighbors.size(); i++) {
         close(neighbors[i].socket);
     }
     close(router_socket);
@@ -441,7 +441,7 @@ void crash(int sock_index) {
     close(data_socket);
 
     // control sockets
-    for (int i = 0; i < control_socket_list.size(); i++){
+    for (int i = 0; i < control_socket_list.size(); i++) {
         close(control_socket_list[i]);
     }
     close(control_socket);

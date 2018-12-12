@@ -90,7 +90,8 @@ void main_loop() {
                 if (!routers_timeout[i].is_connected) { // ignore disconnected routers
                     continue;
                 }
-
+                cout << "expired time of router " << routers_timeout[i].router_id << " is"
+                     << routers_timeout[i].expired_time.tv_sec << endl;
                 diff = diff_tv(cur, routers_timeout[i].expired_time);
                 if (diff.tv_sec >= 0 || diff.tv_usec >= 0) { // this router timeout
                     /* first set this router unreachable, then set the cost to this router to infinity */
@@ -111,12 +112,11 @@ void main_loop() {
                     remove_route_conn(routers_timeout[i].router_id);
                 } else { // this neighbor does't timeout
                     /* waiting time should be min(T, expire_time - cur) */
-                    cout << "expired time of router " << routers_timeout[i].router_id << " is"
-                         << routers_timeout[i].expired_time.tv_sec << endl;
+
                     diff = diff_tv(tv, diff_tv(routers_timeout[i].expired_time, cur));
                     if (diff.tv_sec >= 0 || diff.tv_usec >= 0) {
                         tv = diff_tv(routers_timeout[i].expired_time, cur);
-                        cout << "set tv to" << tv.tv_sec << "s" << endl;
+                        cout << "set tv to " << tv.tv_sec << "s" << endl;
                     }
                 }
             }

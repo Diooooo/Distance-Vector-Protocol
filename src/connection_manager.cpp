@@ -69,6 +69,8 @@ void main_loop() {
             struct timeval cur;
             gettimeofday(&cur, NULL);
 
+            cout << "current time: " << cur.tv_sec << endl;
+
             struct timeval diff; // it store the difference of 2 tv, will be used many times
 
             diff = diff_tv(cur, next_send_time); // get (cur-send_time)
@@ -91,7 +93,7 @@ void main_loop() {
                 if (!routers_timeout[i].is_connected) { // ignore disconnected routers
                     continue;
                 }
-                cout << "expired time of router " << routers_timeout[i].router_id << " is"
+                cout << "expired time of router " << routers_timeout[i].router_id << " is "
                      << routers_timeout[i].expired_time.tv_sec << endl;
                 diff = diff_tv(cur, routers_timeout[i].expired_time);
                 if (diff.tv_sec >= 0 || diff.tv_usec >= 0) { // this router timeout

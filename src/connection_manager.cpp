@@ -96,7 +96,7 @@ void main_loop() {
                 cout << "expired time of router " << routers_timeout[i].router_id << " is "
                      << routers_timeout[i].expired_time.tv_sec << endl;
                 diff = diff_tv(cur, routers_timeout[i].expired_time);
-                if (diff.tv_sec >= 0 || diff.tv_usec >= 0) { // this router timeout
+                if (diff.tv_sec >= 0 || (diff.tv_sec == 0 && diff.tv_usec >= 0)) { // this router timeout
                     /* first set this router unreachable, then set the cost to this router to infinity */
                     routers_timeout[i].is_connected = false;
 

@@ -181,7 +181,7 @@ bool control_recv_hook(int sock_index) {
         }
     }
 
-    cout << "receive controller message: " << control_code << endl;
+    cout << "receive controller message: " << (int)control_code << endl;
     /* Triage on control_code */
     switch (control_code) {
         case AUTHOR:

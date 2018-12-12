@@ -22,7 +22,8 @@ bool first_time = true;
 
 void main_loop();
 
-fd_set master_list, watch_list;
+fd_set master_list;
+fd_set watch_list;
 int head_fd;
 
 void run(uint16_t control_port) {
@@ -48,14 +49,14 @@ void main_loop() {
         watch_list = master_list;
         if (first_time) { // if routing table is not initialized, we can only deal with command from controller
             selret = select(head_fd + 1, &watch_list, NULL, NULL, NULL);
-            cout << "time peroid before init: " << time_period << endl;
+//            cout << "time peroid before init: " << time_period << endl;
         } else {
             /**
              * now we have routing table, we wait for "tv" time to trigger the next event.
              * it can be either send dv or delete neighbor and update routing table(if we didn't receive dv from
              * it for 3T time)
              * */
-            cout << "time period after init: " << time_period << endl;
+//            cout << "time period after init: " << time_period << endl;
             selret = select(head_fd + 1, &watch_list, NULL, NULL, &tv);
         }
 
@@ -75,9 +76,12 @@ void main_loop() {
                 next_send_time.tv_sec = cur.tv_sec + time_period;
                 next_send_time.tv_usec = cur.tv_usec;
 
+                cout << "next sending time: " << next_send_time.tv_sec << "s" << endl;
+
                 send_dv(); // send dv to neighbors
 
                 tv = diff_tv(next_send_time, cur); // waiting time is set to T (temporally)
+                cout << "set tv to" << tv.tv_sec << "s" << endl;
             }
             // don't forget update tv
 
@@ -107,9 +111,12 @@ void main_loop() {
                     remove_route_conn(routers_timeout[i].router_id);
                 } else { // this neighbor does't timeout
                     /* waiting time should be min(T, expire_time - cur) */
+                    cout << "expired time of router " << routers_timeout[i].router_id << " is"
+                         << routers_timeout[i].expired_time.tv_sec << endl;
                     diff = diff_tv(tv, diff_tv(routers_timeout[i].expired_time, cur));
                     if (diff.tv_sec >= 0 || diff.tv_usec >= 0) {
                         tv = diff_tv(routers_timeout[i].expired_time, cur);
+                        cout << "set tv to" << tv.tv_sec << "s" << endl;
                     }
                 }
             }

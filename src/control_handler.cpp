@@ -181,7 +181,7 @@ bool control_recv_hook(int sock_index) {
         }
     }
 
-    cout << "receive controller message: " << (int)control_code << endl;
+    cout << "receive controller message: " << (int) control_code << endl;
     /* Triage on control_code */
     switch (control_code) {
         case AUTHOR:
@@ -589,9 +589,12 @@ void update_routing_table(int sock_index) {
 
     for (int i = 0; i < routers_timeout.size(); i++) {
         if (routers_timeout[i].router_id == received_router_id) {
+            cout << "expired time of router " << received_router_id << " is set from "
+                 << routers_timeout[i].expired_time.tv_sec;
             /* since we receive dv from this neighbor, we need to update the expired time */
             routers_timeout[i].expired_time = cur_tv;
             routers_timeout[i].is_connected = true;
+            cout << " to " << routers_timeout[i].expired_time.tv_sec << endl;
             break;
         }
     }

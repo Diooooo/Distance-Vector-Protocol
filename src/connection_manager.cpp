@@ -18,7 +18,7 @@ int control_socket;
 
 struct timeval tv;
 struct timeval next_send_time;
-bool first_time = true;
+bool first_time;
 
 void main_loop();
 
@@ -44,12 +44,13 @@ void run(uint16_t control_port) {
 
 void main_loop() {
     int selret, sock_index, fdaccept;
-
+    first_time = true;
     while (true) {
         watch_list = master_list;
         if (first_time) { // if routing table is not initialized, we can only deal with command from controller
             selret = select(head_fd + 1, &watch_list, NULL, NULL, NULL);
 //            cout << "time peroid before init: " << time_period << endl;
+            cout << "not received init yet!" << endl;
         } else {
             /**
              * now we have routing table, we wait for "tv" time to trigger the next event.
@@ -81,7 +82,7 @@ void main_loop() {
                 send_dv(); // send dv to neighbors
 
                 tv = diff_tv(next_send_time, cur); // waiting time is set to T (temporally)
-                cout << "set tv to" << tv.tv_sec << "s" << endl;
+                cout << "set tv to " << tv.tv_sec << "s" << endl;
             }
             // don't forget update tv
 

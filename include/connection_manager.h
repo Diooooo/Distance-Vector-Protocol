@@ -14,9 +14,12 @@ extern uint32_t my_ip;
 extern uint16_t my_router_port;
 extern uint16_t my_data_port;
 extern uint16_t my_id;
-extern uint16_t routers_number, time_peroid;
+extern uint16_t routers_number;
+extern uint16_t time_period;
 extern int head_fd;
+
 void run(uint16_t control_port);
+
 extern fd_set master_list;
 extern struct timeval tv;
 extern struct timeval next_send_time;

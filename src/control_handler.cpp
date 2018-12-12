@@ -28,7 +28,8 @@ uint32_t my_ip;
 uint16_t my_router_port;
 uint16_t my_data_port;
 uint16_t my_id;
-uint16_t routers_number, time_peroid;
+uint16_t routers_number;
+uint16_t time_period;
 
 int create_control_sock(uint16_t control_port) {
     int sock;
@@ -267,12 +268,12 @@ void init(int sock_index, char *payload) {
     cout << "time interval: " << time_interval << endl;
 
     routers_number = routers;
-    time_peroid = time_interval;
+    time_period = time_interval;
 
     /* init neighbor expire time to inifinity */
     struct timeval tmp_tv;
     gettimeofday(&tmp_tv, NULL);
-    tmp_tv.tv_sec += 1000 * time_peroid;
+    tmp_tv.tv_sec += 1000 * time_period;
 
     for (int i = 0; i < routers_number; i++) {
 //        memcpy(init_payload, payload + head, INIT_PAYLOAD_SIZE);
@@ -349,8 +350,8 @@ void init(int sock_index, char *payload) {
     /* after init, we can set waiting time for select(), at first, wait T and send dv */
     first_time = false;
     gettimeofday(&next_send_time, NULL);
-    next_send_time.tv_sec += time_peroid;
-    tv.tv_sec = time_peroid;
+    next_send_time.tv_sec += time_period;
+    tv.tv_sec = time_period;
     tv.tv_usec = 0;
 
     /* response to controller */
@@ -584,7 +585,7 @@ void update_routing_table(int sock_index) {
     // update timeout list
     struct timeval cur_tv;
     gettimeofday(&cur_tv, NULL);
-    cur_tv.tv_sec += 3 * time_peroid;
+    cur_tv.tv_sec += 3 * time_period;
 
     for (int i = 0; i < routers_timeout.size(); i++) {
         if (routers_timeout[i].router_id == received_router_id) {

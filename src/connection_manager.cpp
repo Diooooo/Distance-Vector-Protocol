@@ -48,12 +48,14 @@ void main_loop() {
         watch_list = master_list;
         if (first_time) { // if routing table is not initialized, we can only deal with command from controller
             selret = select(head_fd + 1, &watch_list, NULL, NULL, NULL);
+            cout << "time peroid before init: " << time_period << endl;
         } else {
             /**
              * now we have routing table, we wait for "tv" time to trigger the next event.
              * it can be either send dv or delete neighbor and update routing table(if we didn't receive dv from
              * it for 3T time)
              * */
+            cout << "time period after init: " << time_period << endl;
             selret = select(head_fd + 1, &watch_list, NULL, NULL, &tv);
         }
 
@@ -70,7 +72,7 @@ void main_loop() {
             diff = diff_tv(cur, next_send_time); // get (cur-send_time)
             if (diff.tv_sec >= 0 || diff.tv_usec >= 0) { // if current time reach the next expected sending time
                 /* update next expected sending time to (cur+T) */
-                next_send_time.tv_sec = cur.tv_sec + time_peroid;
+                next_send_time.tv_sec = cur.tv_sec + time_period;
                 next_send_time.tv_usec = cur.tv_usec;
 
                 send_dv(); // send dv to neighbors

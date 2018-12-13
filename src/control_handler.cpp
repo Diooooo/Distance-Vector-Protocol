@@ -155,6 +155,7 @@ bool control_recv_hook(int sock_index) {
     bzero(cntrl_header, CONTROL_HEADER_SIZE);
 
     if (recvALL(sock_index, cntrl_header, CONTROL_HEADER_SIZE) < 0) {
+        cout << "close control connection" << endl;
         remove_control_conn(sock_index);
         free(cntrl_header);
         return false;

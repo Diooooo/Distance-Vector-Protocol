@@ -93,7 +93,7 @@ void main_loop() {
                 send_dv(); // send dv to neighbors
 
                 tv = diff_tv(next_send_time, cur); // waiting time is set to T (temporally)
-                cout << "set tv to " << tv.tv_sec << "s" << endl;
+                cout << "set tv to " << tv.tv_sec << "." << tv.tv_usec / 100000 << "s" << endl;
             }
             // don't forget update tv
 
@@ -128,7 +128,7 @@ void main_loop() {
                     diff = diff_tv(tv, diff_tv(routers_timeout[i].expired_time, cur));
                     if (diff.tv_sec >= 0 || (diff.tv_sec == 0 && diff.tv_usec >= 0)) {
                         tv = diff_tv(routers_timeout[i].expired_time, cur);
-                        cout << "set tv to " << tv.tv_sec << "s" << endl;
+                        cout << "set tv to " << tv.tv_sec << "." << tv.tv_usec / 100000 << "s" << endl;
                     }
                 }
             }

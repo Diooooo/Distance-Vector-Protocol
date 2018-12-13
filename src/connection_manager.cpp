@@ -26,7 +26,7 @@ void main_loop();
 fd_set master_list;
 fd_set watch_list;
 int head_fd;
-int trick = 0; // to trigger updating tv when not time out
+int trick = 0; // to trigger updating tv when not timeout
 
 void run(uint16_t control_port) {
     control_socket = create_control_sock(control_port); // create first socket, bind to control port to listen

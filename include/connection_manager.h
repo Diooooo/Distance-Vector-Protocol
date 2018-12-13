@@ -23,6 +23,7 @@ void run(uint16_t control_port);
 extern fd_set master_list;
 extern struct timeval tv;
 extern struct timeval next_send_time;
+extern struct timeval next_event_time;
 extern bool first_time;
 
 

@@ -627,7 +627,7 @@ void update_routing_table(int sock_index) {
     int offset = 0;
 
 
-    payload = (char *) malloc(sizeof(char) * update_num * ROUTING_CONTENT_SIZE);
+    payload = (char *) malloc(sizeof(char) * (ROUTING_HEADER_SIZE + ROUTING_CONTENT_SIZE * update_num));
 
     if (payload != NULL) { // always executes
         /* receive dv payload */

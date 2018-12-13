@@ -585,6 +585,7 @@ void update_routing_table(int sock_index) {
     // update timeout list
     struct timeval cur_tv;
     gettimeofday(&cur_tv, NULL);
+    cout << "time of receiving router packet from router " << received_router_id << " is " << cur_tv.tv_sec << endl;
     cur_tv.tv_sec += 3 * time_period;
 
     for (int i = 0; i < routers_timeout.size(); i++) {
@@ -595,6 +596,7 @@ void update_routing_table(int sock_index) {
             routers_timeout[i].expired_time = cur_tv;
             routers_timeout[i].is_connected = true;
             cout << " to " << routers_timeout[i].expired_time.tv_sec << endl;
+            cout << "tv now is: " << tv.tv_sec << endl;
             break;
         }
     }

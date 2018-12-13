@@ -52,7 +52,6 @@ void main_loop() {
 
     struct timeval cur;
     struct timeval cur_no_timeout;
-    struct timeval diff; // it store the difference of 2 tv, will be used many times
 
     while (true) {
         watch_list = master_list;
@@ -73,15 +72,15 @@ void main_loop() {
 
         if (selret < 0) ERROR("select failed.");
 
-        gettimeofday(&cur, NULL);
-        diff = diff_tv(cur, next_event_time);
 
-        if (selret == 0 || (diff.tv_sec >= 0 || (diff.tv_sec == 0 && diff.tv_usec >= 0))) { // timeout, send or disconnect
+        if (selret == 0) { // timeout, send or disconnect
             cout << "timeout!" << endl;
 
             /* get current time*/
             gettimeofday(&cur, NULL);
             cout << "current time: " << cur.tv_sec << endl;
+
+            struct timeval diff; // it store the difference of 2 tv, will be used many times
 
             diff = diff_tv(cur, next_send_time); // get (cur-send_time)
             if (diff.tv_sec >= 0 || diff.tv_usec >= 0) { // if current time reach the next expected sending time

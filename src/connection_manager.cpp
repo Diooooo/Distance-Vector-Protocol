@@ -140,6 +140,7 @@ void main_loop() {
 
                 /* control_socket */
                 if (sock_index == control_socket) {// TCP, need to create a new connection
+                    cout << "[control connection]" << endl;
                     fdaccept = new_control_conn(sock_index); // create a tcp socket to handle controller commands
 
                     /* Add to watched socket list */
@@ -149,12 +150,14 @@ void main_loop() {
 
                     /* router_socket */
                 else if (sock_index == router_socket) {
+                    cout << "[routing packet]" << endl;
                     /* receive dv from neighbors, should update routing table and waiting time(if needed) */
                     update_routing_table(sock_index);
                 }
 
                     /* data_socket */
                 else if (sock_index == data_socket) {// TCP, need to create link
+                    cout << "[data connection]" << endl;
                     fdaccept = new_data_conn(sock_index);
 
                     /* Add to watched socket list */
@@ -166,8 +169,10 @@ void main_loop() {
                 else {
                     // sockfd is either link to controller(control message), or link to another router(switch datagram)
                     if (isControl(sock_index)) {
+                        cout << "[control command]" << endl;
                         if (!control_recv_hook(sock_index)) FD_CLR(sock_index, &master_list);
                     } else if (isData(sock_index)) {
+                        cout << "[datagram]" << endl;
                         // when switch datagram, first check if connection exist, if not, connect() first, then send()
                         if (!data_recv_hook(sock_index)) FD_CLR(sock_index, &master_list);
 

@@ -190,6 +190,9 @@ void main_loop() {
                     tmp_diff = diff_tv(next_event_time, cur_no_timeout);
                     if (tmp_diff.tv_sec >= 0 || (tmp_diff.tv_sec == 0 && tmp_diff.tv_usec >= 0)) {
                         tv = tmp_diff;
+                    } else {
+                        tv.tv_sec = 0;
+                        tv.tv_usec = 0;
                     }
                     cout << "[no timeout] current time is: " << cur_no_timeout.tv_sec << endl;
                     cout << "[other event] next event time is: " << next_event_time.tv_sec << endl;

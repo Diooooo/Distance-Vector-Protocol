@@ -48,6 +48,10 @@ void main_loop() {
     int selret, sock_index, fdaccept;
     first_time = true;
     while (true) {
+        /* get current time*/
+        struct timeval cur;
+        gettimeofday(&cur, NULL);
+
         watch_list = master_list;
         if (first_time) { // if routing table is not initialized, we can only deal with command from controller
             selret = select(head_fd + 1, &watch_list, NULL, NULL, NULL);
@@ -61,14 +65,11 @@ void main_loop() {
              * */
 //            cout << "time period after init: " << time_period << endl;
             trick = 1;
+            cout << "waiting for tv=" << tv.tv_sec << "..." << endl;
             selret = select(head_fd + 1, &watch_list, NULL, NULL, &tv);
         }
 
         if (selret < 0) ERROR("select failed.");
-
-        /* get current time*/
-        struct timeval cur;
-        gettimeofday(&cur, NULL);
 
 
         if (selret == 0) { // timeout, send or disconnect

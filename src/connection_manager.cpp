@@ -45,7 +45,10 @@ void run(uint16_t control_port) {
 
 
 void main_loop() {
-    int selret, sock_index, fdaccept;
+//    int selret;
+    float selret;
+    int sock_index;
+    int fdaccept;
     first_time = true;
 
     next_event_time.tv_sec = 0; // init
@@ -73,7 +76,7 @@ void main_loop() {
         if (selret < 0) ERROR("select failed.");
 
 
-        if (selret == 0) { // timeout, send or disconnect
+        if (selret == 0.0f) { // timeout, send or disconnect
             cout << "timeout!" << endl;
 
             /* get current time*/

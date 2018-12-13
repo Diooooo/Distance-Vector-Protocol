@@ -310,16 +310,6 @@ void init(int sock_index, char *payload) {
             my_data_port = data_port;
             my_ip = router_ip;
             cout << "my router id: " << my_id << endl;
-            /* create router listening socket and data listening socket */
-            cout << "creating router socket..." << endl;
-            router_socket = create_route_sock(router_port);
-            FD_SET(router_socket, &master_list);
-            if (router_socket > head_fd) head_fd = router_socket;
-
-            cout << "creating data socket..." << endl;
-            data_socket = create_data_sock(data_port);
-            FD_SET(data_socket, &master_list);
-            if (data_socket > head_fd) head_fd = data_socket;
 
             /* this is request */
             routing_content.next_hop_id = my_id;
@@ -360,6 +350,18 @@ void init(int sock_index, char *payload) {
     /* response to controller */
     ctrl_response = create_response_header(sock_index, 1, 0, 0);
     sendALL(sock_index, ctrl_response, CONTROL_HEADER_SIZE);
+
+    /* create router listening socket and data listening socket */
+    cout << "creating router socket..." << endl;
+    router_socket = create_route_sock(my_router_port);
+    FD_SET(router_socket, &master_list);
+    if (router_socket > head_fd) head_fd = router_socket;
+
+    cout << "creating data socket..." << endl;
+    data_socket = create_data_sock(my_data_port);
+    FD_SET(data_socket, &master_list);
+    if (data_socket > head_fd) head_fd = data_socket;
+
 }
 
 void routing_table(int sock_index) {

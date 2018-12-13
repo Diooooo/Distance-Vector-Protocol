@@ -360,7 +360,8 @@ void init(int sock_index, char *payload) {
     FD_SET(data_socket, &master_list);
     if (data_socket > head_fd) head_fd = data_socket;
 
-    next_event_time = next_send_time; // init next_event_time
+    next_event_time = next_send_time; // init next_event_time, assume init() called only once++++++++++
+
 
 }
 

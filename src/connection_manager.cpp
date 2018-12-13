@@ -186,7 +186,11 @@ void main_loop() {
 
                 if (next_event_time.tv_sec > 0) {
                     gettimeofday(&cur_no_timeout, NULL);
-                    tv = diff_tv(next_event_time, cur_no_timeout);
+                    struct timeval tmp_diff;
+                    tmp_diff = diff_tv(next_event_time, cur_no_timeout);
+                    if (tmp_diff.tv_sec >= 0 || (tmp_diff.tv_sec == 0 && tmp_diff.tv_usec >= 0)) {
+                        tv = tmp_diff;
+                    }
                     cout << "[no timeout] current time is: " << cur_no_timeout.tv_sec << endl;
                     cout << "[other event] next event time is: " << next_event_time.tv_sec << endl;
                     cout << "tv now is: " << tv.tv_sec << "." << tv.tv_usec / 100000 << "s" << endl;

@@ -72,8 +72,8 @@ void main_loop() {
 
         if (selret < 0) ERROR("select failed.");
 
-        if (tv.tv_sec == 0 && tv.tv_usec == 0) {
-//        if (selret == 0) { // timeout, send or disconnect
+
+        if (selret == 0) { // timeout, send or disconnect
             cout << "timeout!" << endl;
 
             /* get current time*/

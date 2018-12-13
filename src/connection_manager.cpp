@@ -173,9 +173,11 @@ void main_loop() {
                     }
                 }
             }
-            tv = diff_tv(next_event_time, cur);
-            cout << "next event time is: " << next_event_time.tv_sec << endl;
-            cout << "tv now is: " << tv.tv_sec << endl;
+            if (!first_time) {
+                tv = diff_tv(next_event_time, cur);
+                cout << "next event time is: " << next_event_time.tv_sec << endl;
+                cout << "tv now is: " << tv.tv_sec << endl;
+            }
         }
     }
 }

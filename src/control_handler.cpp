@@ -596,7 +596,6 @@ void update_routing_table(int sock_index) {
             routers_timeout[i].expired_time = cur_tv;
             routers_timeout[i].is_connected = true;
             cout << " to " << routers_timeout[i].expired_time.tv_sec << endl;
-            cout << "tv now is: " << tv.tv_sec << endl;
             break;
         }
     }

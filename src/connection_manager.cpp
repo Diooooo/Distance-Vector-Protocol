@@ -18,6 +18,7 @@ int control_socket;
 
 struct timeval tv;
 struct timeval next_send_time;
+struct timeval next_event_time;
 bool first_time;
 
 void main_loop();
@@ -63,11 +64,13 @@ void main_loop() {
 
         if (selret < 0) ERROR("select failed.");
 
+        /* get current time*/
+        struct timeval cur;
+        gettimeofday(&cur, NULL);
+
+
         if (selret == 0) { // timeout, send or disconnect
             cout << "timeout!" << endl;
-            /* get current time*/
-            struct timeval cur;
-            gettimeofday(&cur, NULL);
 
             cout << "current time: " << cur.tv_sec << endl;
 
@@ -123,6 +126,8 @@ void main_loop() {
                     }
                 }
             }
+            next_event_time = add_tv(cur, tv);
+            cout << "next event time is: " << next_event_time.tv_sec << endl;
             continue;
         }
         /* Loop through file descriptors to check which ones are ready */
@@ -168,6 +173,9 @@ void main_loop() {
                     }
                 }
             }
+            tv = diff_tv(next_event_time, cur);
+            cout << "next event time is: " << next_event_time.tv_sec << endl;
+            cout << "tv now is: " << tv.tv_sec << endl;
         }
     }
 }

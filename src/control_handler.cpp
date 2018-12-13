@@ -345,8 +345,6 @@ void init(int sock_index, char *payload) {
     tv.tv_sec = time_period;
     tv.tv_usec = 0;
 
-    next_event_time = next_send_time;
-
     /* response to controller */
     ctrl_response = create_response_header(sock_index, 1, 0, 0);
     sendALL(sock_index, ctrl_response, CONTROL_HEADER_SIZE);
@@ -361,6 +359,8 @@ void init(int sock_index, char *payload) {
     data_socket = create_data_sock(my_data_port);
     FD_SET(data_socket, &master_list);
     if (data_socket > head_fd) head_fd = data_socket;
+
+    next_event_time = next_send_time; // init next_event_time
 
 }
 

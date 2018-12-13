@@ -26,7 +26,7 @@ void main_loop();
 fd_set master_list;
 fd_set watch_list;
 int head_fd;
-int trick = 0; // to trigger updating tv when not timeout
+
 
 void run(uint16_t control_port) {
     control_socket = create_control_sock(control_port); // create first socket, bind to control port to listen
@@ -48,14 +48,12 @@ void main_loop() {
     int selret, sock_index, fdaccept;
     first_time = true;
 
+    next_event_time.tv_sec = 0; // init
+
     struct timeval cur;
     struct timeval cur_no_timeout;
 
     while (true) {
-        /* get current time*/
-        gettimeofday(&cur, NULL);
-        cout << "current time: " << cur.tv_sec << endl;
-
         watch_list = master_list;
         if (first_time) { // if routing table is not initialized, we can only deal with command from controller
             selret = select(head_fd + 1, &watch_list, NULL, NULL, NULL);
@@ -68,8 +66,7 @@ void main_loop() {
              * it for 3T time)
              * */
 //            cout << "time period after init: " << time_period << endl;
-            trick = 1;
-            cout << "waiting for tv=" << tv.tv_sec << "..." << endl;
+            cout << "waiting for tv=" << tv.tv_sec << "." << tv.tv_usec / 100000 << "s..." << endl;
             selret = select(head_fd + 1, &watch_list, NULL, NULL, &tv);
         }
 
@@ -78,6 +75,10 @@ void main_loop() {
 
         if (selret == 0) { // timeout, send or disconnect
             cout << "timeout!" << endl;
+
+            /* get current time*/
+            gettimeofday(&cur, NULL);
+            cout << "current time: " << cur.tv_sec << endl;
 
             struct timeval diff; // it store the difference of 2 tv, will be used many times
 
@@ -183,12 +184,12 @@ void main_loop() {
                     }
                 }
 
-                if (trick == 1) {
+                if (next_event_time.tv_sec > 0) {
                     gettimeofday(&cur_no_timeout, NULL);
                     tv = diff_tv(next_event_time, cur_no_timeout);
                     cout << "[no timeout] current time is: " << cur_no_timeout.tv_sec << endl;
                     cout << "[other event] next event time is: " << next_event_time.tv_sec << endl;
-                    cout << "tv now is: " << tv.tv_sec << endl;
+                    cout << "tv now is: " << tv.tv_sec << "." << tv.tv_usec / 100000 << "s" << endl;
                 }
             }
 

@@ -26,6 +26,7 @@ void main_loop();
 fd_set master_list;
 fd_set watch_list;
 int head_fd;
+int trick = 0; // to trigger updating tv when not time out
 
 void run(uint16_t control_port) {
     control_socket = create_control_sock(control_port); // create first socket, bind to control port to listen
@@ -59,6 +60,7 @@ void main_loop() {
              * it for 3T time)
              * */
 //            cout << "time period after init: " << time_period << endl;
+            trick = 1;
             selret = select(head_fd + 1, &watch_list, NULL, NULL, &tv);
         }
 
@@ -127,7 +129,7 @@ void main_loop() {
                 }
             }
             next_event_time = add_tv(cur, tv);
-            cout << "next event time is: " << next_event_time.tv_sec << endl;
+            cout << "[timeout] next event time is: " << next_event_time.tv_sec << endl;
             continue;
         }
         /* Loop through file descriptors to check which ones are ready */
@@ -173,9 +175,9 @@ void main_loop() {
                     }
                 }
             }
-            if (!first_time) {
+            if (trick == 1) {
                 tv = diff_tv(next_event_time, cur);
-                cout << "next event time is: " << next_event_time.tv_sec << endl;
+                cout << "[other event] next event time is: " << next_event_time.tv_sec << endl;
                 cout << "tv now is: " << tv.tv_sec << endl;
             }
         }

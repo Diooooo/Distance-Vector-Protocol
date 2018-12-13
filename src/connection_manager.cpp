@@ -45,8 +45,7 @@ void run(uint16_t control_port) {
 
 
 void main_loop() {
-//    int selret;
-    float selret;
+    int selret;
     int sock_index;
     int fdaccept;
     first_time = true;
@@ -57,6 +56,9 @@ void main_loop() {
     struct timeval cur_no_timeout;
 
     while (true) {
+        gettimeofday(&cur, NULL);
+        cout << "current time: " << cur.tv_sec << endl;
+
         watch_list = master_list;
         if (first_time) { // if routing table is not initialized, we can only deal with command from controller
             selret = select(head_fd + 1, &watch_list, NULL, NULL, NULL);
@@ -73,10 +75,13 @@ void main_loop() {
             selret = select(head_fd + 1, &watch_list, NULL, NULL, &tv);
         }
 
+        gettimeofday(&cur, NULL);
+        cout << "current time: " << cur.tv_sec << endl;
+
         if (selret < 0) ERROR("select failed.");
 
 
-        if (selret == 0.0f) { // timeout, send or disconnect
+        if (selret == 0) { // timeout, send or disconnect
             cout << "timeout!" << endl;
 
             /* get current time*/

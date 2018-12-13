@@ -117,7 +117,7 @@ void main_loop() {
                     /* waiting time should be min(T, expire_time - cur) */
 
                     diff = diff_tv(tv, diff_tv(routers_timeout[i].expired_time, cur));
-                    if (diff.tv_sec >= 0 || diff.tv_usec >= 0) {
+                    if (diff.tv_sec >= 0 || (diff.tv_sec == 0 && diff.tv_usec >= 0)) {
                         tv = diff_tv(routers_timeout[i].expired_time, cur);
                         cout << "set tv to " << tv.tv_sec << "s" << endl;
                     }

@@ -57,7 +57,7 @@ void main_loop() {
 
     while (true) {
         gettimeofday(&cur, NULL);
-        cout << "current time: " << cur.tv_sec << endl;
+        cout << "[starting loop] current time: " << cur.tv_sec << endl;
 
         watch_list = master_list;
         if (first_time) { // if routing table is not initialized, we can only deal with command from controller
@@ -76,7 +76,7 @@ void main_loop() {
         }
 
         gettimeofday(&cur, NULL);
-        cout << "current time: " << cur.tv_sec << endl;
+        cout << "[after select] current time: " << cur.tv_sec << endl;
 
         if (selret < 0) ERROR("select failed.");
 

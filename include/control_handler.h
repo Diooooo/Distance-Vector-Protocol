@@ -29,6 +29,8 @@ struct Timeout {
 struct Route_Neighbor {
     uint16_t router_id;
     int socket;
+    uint32_t ip;
+    uint16_t port;
 };
 
 extern std::vector<Routing> table;

@@ -115,16 +115,18 @@ int new_route_conn(uint32_t remote_ip, uint16_t remote_port, uint16_t remote_id)
     if (sock < 0) ERROR("socket() failed");
 
 
-    bzero(&remote_router_addr, sizeof(remote_router_addr));
-
-    remote_router_addr.sin_family = AF_INET;
-    remote_router_addr.sin_addr.s_addr = htonl(remote_ip);
-    remote_router_addr.sin_port = htons(remote_port);
-
-    if (connect(sock, (struct sockaddr *) &remote_router_addr, sizeof(remote_router_addr)) < 0) ERROR(
-            "connect() failed");
+//    bzero(&remote_router_addr, sizeof(remote_router_addr));
+//
+//    remote_router_addr.sin_family = AF_INET;
+//    remote_router_addr.sin_addr.s_addr = htonl(remote_ip);
+//    remote_router_addr.sin_port = htons(remote_port);
+//
+//    if (connect(sock, (struct sockaddr *) &remote_router_addr, sizeof(remote_router_addr)) < 0) ERROR(
+//            "connect() failed");
     neighbor.router_id = remote_id;
     neighbor.socket = sock;
+    neighbor.ip = remote_ip;
+    neighbor.port = remote_port;
     neighbors.push_back(neighbor);
     return sock;
 }
@@ -478,8 +480,137 @@ void penultimate_data_packet() {
 
 }
 
+//void update_routing_table(int sock_index) {
+//    char *routing_header, *payload;
+//    struct sockaddr_in route_addr;
+//    uint16_t update_num, src_router_port;
+//    uint32_t src_ip;
+//    uint16_t received_router_id = INF;
+//    int received_router_pos;
+//
+//    socklen_t addr_len = sizeof(struct sockaddr_in);
+//    route_addr.sin_family = AF_INET;
+//    route_addr.sin_port = htons(my_router_port);
+//    route_addr.sin_addr.s_addr = htonl(INADDR_ANY); // don't need to assign a special ip
+//
+//    /* first read header */
+//    routing_header = (char *) malloc(sizeof(char) * ROUTING_HEADER_SIZE);
+//    bzero(routing_header, ROUTING_HEADER_SIZE);
+//
+//    if (recvfrom(sock_index, routing_header, ROUTING_HEADER_SIZE, 0, (struct sockaddr *) &route_addr, &addr_len) < 0) {
+//        cout << "receive routing message fail!" << endl;
+//        return;
+//    }
+//
+//    int offset = 0;
+//
+//    /* number of update fields */
+//    memcpy(&update_num, routing_header + offset, sizeof(update_num));
+//    update_num = ntohs(update_num);
+//    offset += 2;
+//
+//    /* source router port */
+//    memcpy(&src_router_port, routing_header + offset, sizeof(src_router_port));
+//    src_router_port = ntohs(src_router_port);
+//    offset += 2;
+//
+//    /* source router ip */
+//    memcpy(&src_ip, routing_header + offset, sizeof(src_ip));
+//    src_ip = ntohl(src_ip);
+//
+//    for (int i = 0; i < table.size(); i++) { // find id of received router
+//        if (table[i].dest_ip == src_ip) {
+//            received_router_id = table[i].dest_id;
+//            received_router_pos = i;
+//            cout << "receiving dv from router " << received_router_id << "..." << endl;
+//            break;
+//        }
+//    }
+//
+//    if (received_router_id == INF) {
+//        cout << "can't find router from routing table, this should not happen" << endl;
+//    }
+//    if (table[received_router_pos].dest_cost == INF) {
+//        cout << "it's not possible to receive routing packet from non-neighbors"
+//             << endl;
+//        cout << "this may be the delay dv from neighbor, but it doesn't matter, we return" << endl;
+//    }
+//
+//    if (update_num > 0) { // malloc payload, always goes into
+//        payload = (char *) malloc(sizeof(char) * update_num * ROUTING_CONTENT_SIZE);
+//    }
+//
+//    if (payload != NULL) { // always executes
+//        /* receive dv payload */
+//        if (recvfrom(sock_index, payload, (size_t) ROUTING_CONTENT_SIZE * update_num, 0,
+//                     (struct sockaddr *) &route_addr, &addr_len) < 0) {
+//            cout << "receive routing message fail!" << endl;
+//            return;
+//        }
+//
+//        if (table[received_router_pos].dest_cost == INF) { // to free the socket buffer
+//            return;
+//        }
+//
+//        offset = 0;
+//        uint32_t remote_router_ip;
+//        uint16_t remote_router_port, remote_router_id, cost;
+//        /* read payload and update routing table */
+//        for (int i = 0; i < update_num; i++) {
+//            memcpy(&remote_router_ip, payload + offset, sizeof(remote_router_ip));
+//            remote_router_ip = ntohl(remote_router_ip);
+//            offset += 4;
+//
+//            memcpy(&remote_router_port, payload + offset, sizeof(remote_router_port));
+//            remote_router_port = ntohs(remote_router_port);
+//            offset += 4;
+//
+//            memcpy(&remote_router_id, payload + offset, sizeof(remote_router_id));
+//            remote_router_id = ntohs(remote_router_id);
+//            offset += 2;
+//
+//            memcpy(&cost, payload + offset, sizeof(cost));
+//            cost = ntohs(cost);
+//            offset += 2;
+//
+//            if (cost == INF) { // if cost is infinity, there is no need to update anything
+//                continue;
+//            }
+//            for (int j = 0; j < table.size(); j++) {
+//                /* D_x(y) = min(d_x(v) + d_v(y)), v is this neighbor */
+//                if (table[j].dest_id == remote_router_id) {
+//                    if (table[i].dest_cost > table[received_router_pos].dest_cost + cost) {
+//                        /* if updated, the next hop from x to y is v */
+//                        table[i].dest_cost = table[received_router_pos].dest_cost + cost;
+//                        table[i].next_hop_id = received_router_id;
+//                    }
+//                    break;
+//                }
+//            }
+//        }
+//    }
+//
+//    // update timeout list
+//    struct timeval cur_tv;
+//    gettimeofday(&cur_tv, NULL);
+//    cout << "time of receiving router packet from router " << received_router_id << " is " << cur_tv.tv_sec << endl;
+//    cur_tv.tv_sec += 3 * time_period;
+//
+//    for (int i = 0; i < routers_timeout.size(); i++) {
+//        if (routers_timeout[i].router_id == received_router_id) {
+//            cout << "expired time of router " << received_router_id << " is set from "
+//                 << routers_timeout[i].expired_time.tv_sec;
+//            /* since we receive dv from this neighbor, we need to update the expired time */
+//            routers_timeout[i].expired_time = cur_tv;
+//            routers_timeout[i].is_connected = true;
+//            cout << " to " << routers_timeout[i].expired_time.tv_sec << endl;
+//            break;
+//        }
+//    }
+//}
+
 void update_routing_table(int sock_index) {
-    char *routing_header, *payload;
+    char *payload;
     struct sockaddr_in route_addr;
     uint16_t update_num, src_router_port;
     uint32_t src_ip;
@@ -491,66 +622,58 @@ void update_routing_table(int sock_index) {
     route_addr.sin_port = htons(my_router_port);
     route_addr.sin_addr.s_addr = htonl(INADDR_ANY); // don't need to assign a special ip
 
-    /* first read header */
-    routing_header = (char *) malloc(sizeof(char) * ROUTING_HEADER_SIZE);
-    bzero(routing_header, ROUTING_HEADER_SIZE);
-
-    if (recvfrom(sock_index, routing_header, ROUTING_HEADER_SIZE, 0, (struct sockaddr *) &route_addr, &addr_len) < 0) {
-        cout << "receive routing message fail!" << endl;
-        return;
-    }
+    update_num = (uint16_t) table.size();
 
     int offset = 0;
 
-    /* number of update fields */
-    memcpy(&update_num, routing_header + offset, sizeof(update_num));
-    update_num = ntohs(update_num);
-    offset += 2;
 
-    /* source router port */
-    memcpy(&src_router_port, routing_header + offset, sizeof(src_router_port));
-    src_router_port = ntohs(src_router_port);
-    offset += 2;
-
-    /* source router ip */
-    memcpy(&src_ip, routing_header + offset, sizeof(src_ip));
-    src_ip = ntohl(src_ip);
-
-    for (int i = 0; i < table.size(); i++) { // find id of received router
-        if (table[i].dest_ip == src_ip) {
-            received_router_id = table[i].dest_id;
-            received_router_pos = i;
-            cout << "receiving dv from router " << received_router_id << "..." << endl;
-            break;
-        }
-    }
-
-    if (received_router_id == INF) {
-        cout << "can't find router from routing table, this should not happen" << endl;
-    }
-    if (table[received_router_pos].dest_cost == INF) {
-        cout << "it's not possible to receive routing packet from non-neighbors"
-             << endl;
-        cout << "this may be the delay dv from neighbor, but it doesn't matter, we return" << endl;
-    }
-
-    if (update_num > 0) { // malloc payload, always goes into
-        payload = (char *) malloc(sizeof(char) * update_num * ROUTING_CONTENT_SIZE);
-    }
+    payload = (char *) malloc(sizeof(char) * update_num * ROUTING_CONTENT_SIZE);
 
     if (payload != NULL) { // always executes
         /* receive dv payload */
-        if (recvfrom(sock_index, payload, (size_t) ROUTING_CONTENT_SIZE * update_num, 0,
+        if (recvfrom(sock_index, payload, (size_t) ROUTING_HEADER_SIZE + ROUTING_CONTENT_SIZE * update_num, 0,
                      (struct sockaddr *) &route_addr, &addr_len) < 0) {
             cout << "receive routing message fail!" << endl;
             return;
+        }
+
+        /* number of update fields */
+        memcpy(&update_num, payload + offset, sizeof(update_num));
+        update_num = ntohs(update_num);
+        offset += 2;
+
+        /* source router port */
+        memcpy(&src_router_port, payload + offset, sizeof(src_router_port));
+        src_router_port = ntohs(src_router_port);
+        offset += 2;
+
+        /* source router ip */
+        memcpy(&src_ip, payload + offset, sizeof(src_ip));
+        src_ip = ntohl(src_ip);
+        offset += 4;
+
+        for (int i = 0; i < table.size(); i++) { // find id of received router
+            if (table[i].dest_ip == src_ip) {
+                received_router_id = table[i].dest_id;
+                received_router_pos = i;
+                cout << "receiving dv from router " << received_router_id << "..." << endl;
+                break;
+            }
+        }
+
+        if (received_router_id == INF) {
+            cout << "can't find router from routing table, this should not happen" << endl;
+        }
+        if (table[received_router_pos].dest_cost == INF) {
+            cout << "it's not possible to receive routing packet from non-neighbors"
+                 << endl;
+            cout << "this may be the delay dv from neighbor, but it doesn't matter, we return" << endl;
         }
 
         if (table[received_router_pos].dest_cost == INF) { // to free the socket buffer
             return;
         }
 
-        offset = 0;
         uint32_t remote_router_ip;
         uint16_t remote_router_port, remote_router_id, cost;
         /* read payload and update routing table */
@@ -614,7 +737,8 @@ void send_dv() {
     int update_num = (int) table.size();
     for (int i = 0; i < neighbors.size(); i++) {
         cout << "send dv to router " << neighbors[i].router_id << endl;
-        if (sendALL(neighbors[i].socket, dv, ROUTING_HEADER_SIZE + update_num * ROUTING_CONTENT_SIZE) < 0) {
+        if (send_udp(neighbors[i].socket, dv, ROUTING_HEADER_SIZE + update_num * ROUTING_CONTENT_SIZE, neighbors[i].ip,
+                     neighbors[i].port) < 0) {
             cout << "Send DV fail" << endl;
         }
     }

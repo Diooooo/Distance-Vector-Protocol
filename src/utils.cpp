@@ -47,3 +47,22 @@ struct timeval add_tv(struct timeval tv1, struct timeval tv2) {
     }
     return tv_add;
 }
+
+ssize_t send_udp(int sock_index, char *buffer, ssize_t nbytes, uint32_t ip, uint16_t port) {
+    ssize_t bytes = 0;
+    struct sockaddr_in remote_router_addr;
+    socklen_t addrlen = sizeof(remote_router_addr);
+
+    bzero(&remote_router_addr, sizeof(remote_router_addr));
+
+    remote_router_addr.sin_family = AF_INET;
+    remote_router_addr.sin_addr.s_addr = htonl(ip);
+    remote_router_addr.sin_port = htons(port);
+
+    bytes = sendto(sock_index, buffer, (size_t) nbytes, 0, (struct sockaddr *) &remote_router_addr,
+                   addrlen);
+
+    if (bytes == 0) return -1;
+
+    return bytes;
+}

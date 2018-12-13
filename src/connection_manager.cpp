@@ -175,12 +175,14 @@ void main_loop() {
                         ERROR("Unknown socket index");
                     }
                 }
+
+                if (trick == 1) {
+                    tv = diff_tv(next_event_time, cur);
+                    cout << "[other event] next event time is: " << next_event_time.tv_sec << endl;
+                    cout << "tv now is: " << tv.tv_sec << endl;
+                }
             }
-            if (trick == 1) {
-                tv = diff_tv(next_event_time, cur);
-                cout << "[other event] next event time is: " << next_event_time.tv_sec << endl;
-                cout << "tv now is: " << tv.tv_sec << endl;
-            }
+
         }
     }
 }

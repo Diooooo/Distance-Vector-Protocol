@@ -7,11 +7,19 @@
 
 #include <stdint.h>
 
+struct DataConn{
+    uint32_t router_ip;
+    int socket;
+};
 bool isData(int sock_index);
 
 int create_data_sock(uint16_t data_port);
 
 int new_data_conn(int sock_index);
+
+int get_data_sock(uint32_t remote_ip);
+
+int create_data_conn(uint32_t remote_ip, uint16_t remote_port);
 
 void remove_data_conn(int sock_index);
 

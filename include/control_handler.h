@@ -33,8 +33,21 @@ struct Route_Neighbor {
     uint16_t port;
 };
 
+struct Transfer_File{
+    uint8_t transfer_id;
+    uint8_t ttl;
+    std::vector<uint16_t> sequence;
+};
+
 extern std::vector<Routing> table;
 extern std::vector<Timeout> routers_timeout;
+extern std::vector<Transfer_File> transfer_files;
+
+extern char *last_packet;
+extern char *penultimate_packet;
+extern char *file_buffer;
+extern int datagram_count;
+
 
 int create_control_sock(uint16_t control_port);
 
@@ -62,18 +75,20 @@ void update(int sock_index, char *payload);
 
 void crash(int sock_index);
 
-void send_file();
+void send_file(int sock_index, char *payload, uint16_t payload_len);
 
-void send_file_stats();
+void send_file_stats(int sock_index, char *payload);
 
-void last_data_packet();
+void last_data_packet(int sock_index);
 
-void penultimate_data_packet();
+void penultimate_data_packet(int sock_index);
 
 void update_routing_table(int sock_index);
 
 void send_dv();
 
 char *create_distance_vector();
+
+char *create_data_packet(uint32_t dest_ip, uint8_t transfer_id, uint8_t ttl, uint16_t seq_num, int fin, char* payload);
 
 #endif //BILINSHI_CONTROL_HANDLER_H

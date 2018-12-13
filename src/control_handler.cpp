@@ -31,6 +31,12 @@ uint16_t my_id;
 uint16_t routers_number;
 uint16_t time_period;
 
+vector<Transfer_File> transfer_files;
+char *last_packet;
+char *penultimate_packet;
+char *file_buffer;
+int datagram_count;
+
 int create_control_sock(uint16_t control_port) {
     int sock;
     struct sockaddr_in control_addr;
@@ -89,6 +95,9 @@ int new_control_conn(int sock_index) {
 
     /* Insert into list of active control connections */
     control_socket_list.push_back(fdaccept);
+
+    FD_SET(fdaccept, &master_list);
+    if (fdaccept > head_fd) head_fd = fdaccept;
 
     return fdaccept;
 }
@@ -203,16 +212,16 @@ bool control_recv_hook(int sock_index) {
             crash(sock_index);
             break;
         case SENDFILE:
-            send_file();
+            send_file(sock_index, cntrl_payload, payload_len);
             break;
         case SENDFILE_STATS:
-            send_file_stats();
+            send_file_stats(sock_index, cntrl_payload);
             break;
         case LAST_DATA_PACKET:
-            last_data_packet();
+            last_data_packet(sock_index);
             break;
         case PENULTIMATE_DATA_PACKET:
-            penultimate_data_packet();
+            penultimate_data_packet(sock_index);
             break;
 
         default:
@@ -364,7 +373,15 @@ void init(int sock_index, char *payload) {
 
     next_event_time = next_send_time; // init next_event_time, assume init() called only once++++++++++
 
+    /* malloc last_packet and penultimate_packet */
+    last_packet = (char *) malloc(sizeof(char) * DATA_PAYLOAD);
+    bzero(last_packet, DATA_PAYLOAD + 12);
+    penultimate_packet = (char *) malloc(sizeof(char) * DATA_PAYLOAD);
+    bzero(penultimate_packet, DATA_PAYLOAD + 12);
+    file_buffer = (char *) malloc(sizeof(char) * 10000 * DATA_PAYLOAD);
+    bzero(file_buffer, 10000 * DATA_PAYLOAD);
 
+    datagram_count = 0;
 }
 
 void routing_table(int sock_index) {
@@ -464,20 +481,180 @@ void crash(int sock_index) {
     exit(0);
 }
 
-void send_file() {
+void send_file(int sock_index, char *payload, uint16_t payload_len) {
+    uint32_t dest_ip;
+    uint8_t ttl;
+    uint8_t transfer_id;
+    uint16_t seq_num;
+    char *file_name;
+
+    file_name = (char *) malloc(sizeof(char) * (payload_len - 8));
+
+    int offset = 0;
+    memcpy(&dest_ip, payload + offset, sizeof(dest_ip));
+    dest_ip = ntohl(dest_ip);
+    offset += 4;
+
+    memcpy(&ttl, payload + offset, sizeof(ttl));
+    offset += 1;
+
+    memcpy(&transfer_id, payload + offset, sizeof(transfer_id));
+    offset += 1;
+
+    memcpy(&seq_num, payload + offset, sizeof(seq_num));
+
+    /* find or create socket */
+    uint16_t next_hop = 0;
+    uint32_t next_hop_ip = 0;
+    for (int i = 0; i < table.size(); i++) {
+        if (table[i].dest_ip == dest_ip) {
+            next_hop = table[i].next_hop_id;
+            break;
+        }
+    }
+    if (next_hop == 0) {
+        cout << "not find next hop, impossible" << endl;
+    }
+    for (int j = 0; j < table.size(); j++) {
+        if (table[j].dest_id == next_hop) {
+            next_hop_ip = table[j].dest_ip;
+            break;
+        }
+    }
+    if (next_hop_ip == 0) {
+        cout << "not find next hop ip, impossible" << endl;
+    }
+
+    int link_socket;
+    link_socket = get_data_sock(next_hop_ip);
+
+
+    FILE *fr = fopen(file_name, "r");
+
+    char buffer[DATA_PAYLOAD];
+    char *packet;
+    int length = 0;
+    int fin;
+    while ((length = fread(buffer, sizeof(char), DATA_PAYLOAD, fr)) > 0) {
+        /* set fin */
+        if ((length = fread(buffer, sizeof(char), DATA_PAYLOAD, fr)) > 0) {
+            fin = 0;
+            fseek(fr, -length, SEEK_CUR);
+        } else {
+            fin = 1;
+        }
+        packet = (char *) malloc(sizeof(char) * (DATA_PAYLOAD + 12));
+        packet = create_data_packet(dest_ip, transfer_id, ttl, seq_num++, fin, buffer);
+        if (sendALL(link_socket, packet, DATA_PAYLOAD + 12) < 0) {
+            printf("Send File:%s Failed./n", file_name);
+            break;
+        }
+        bzero(buffer, DATA_PAYLOAD);
+        bzero(packet, DATA_PAYLOAD + 12);
+    }
+
+    /* response */
+    char *ctrl_response;
+    ctrl_response = create_response_header(sock_index, 5, 0, 0);
+
+    sendALL(sock_index, ctrl_response, CONTROL_HEADER_SIZE);
 
 }
 
-void send_file_stats() {
+void send_file_stats(int sock_index, char *payload) {
+    uint8_t transfer_id;
+    uint16_t payload_len, response_len;
+
+    memcpy(&transfer_id, payload, sizeof(transfer_id));
+
+    int seq_amount = 0;
+    int id_pos = -1;
+    uint8_t ttl = 0;
+
+    for (int i = 0; i < transfer_files.size(); i++) {
+        if (transfer_files[i].transfer_id == transfer_id) {
+            seq_amount = transfer_files[i].sequence.size();
+            ttl = transfer_files[i].ttl;
+            id_pos = i;
+            break;
+        }
+    }
+
+    if (id_pos < 0) {
+        cout << "didn't find transfer id" << endl;
+    }
+
+    payload_len = 2 * seq_amount + 4;
+    response_len = CONTROL_HEADER_SIZE + payload_len;
+    char *ctrl_response_payload, *ctrl_response_header, *ctrl_response;
+
+    ctrl_response = (char *) malloc(sizeof(char) * response_len);
+
+    ctrl_response_header = create_response_header(sock_index, 6, 0, payload_len);
+
+    ctrl_response_payload = (char *) malloc(sizeof(char) * payload_len);
+    bzero(ctrl_response_payload, payload_len);
+    int offset = 0;
+
+    memcpy(ctrl_response_payload + offset, &transfer_id, sizeof(transfer_id));
+    offset += 1;
+
+    memcpy(ctrl_response_payload + offset, &ttl, sizeof(ttl));
+    offset += 3;
+
+    uint16_t seq_n;
+    for (int i = 0; i < seq_amount; i++) {
+        seq_n = transfer_files[id_pos].sequence[i];
+        seq_n = htons(seq_n);
+        memcpy(ctrl_response_payload + offset, &seq_n, sizeof(uint16_t));
+        offset += 1;
+    }
+
+    /* Copy Header */
+    memcpy(ctrl_response, ctrl_response_header, CONTROL_HEADER_SIZE);
+    /* Copy Payload */
+    memcpy(ctrl_response + CONTROL_HEADER_SIZE, ctrl_response_payload, payload_len);
+
+    sendALL(sock_index, ctrl_response, response_len);
 
 }
 
-void last_data_packet() {
+void last_data_packet(int sock_index) {
+    uint16_t response_len;
+    char *ctrl_response_header, *ctrl_response_payload, *ctrl_response;
 
+    ctrl_response_payload = (char *) malloc(DATA_PAYLOAD);
+    memcpy(ctrl_response_payload, last_packet, DATA_PAYLOAD);
+
+    ctrl_response_header = create_response_header(sock_index, 7, 0, DATA_PAYLOAD);
+
+    response_len = CONTROL_HEADER_SIZE + DATA_PAYLOAD;
+    ctrl_response = (char *) malloc(response_len);
+    /* Copy Header */
+    memcpy(ctrl_response, ctrl_response_header, CONTROL_HEADER_SIZE);
+    /* Copy Payload */
+    memcpy(ctrl_response + CONTROL_HEADER_SIZE, ctrl_response_payload, DATA_PAYLOAD);
+
+    sendALL(sock_index, ctrl_response, response_len);
 }
 
-void penultimate_data_packet() {
+void penultimate_data_packet(int sock_index) {
+    uint16_t response_len;
+    char *ctrl_response_header, *ctrl_response_payload, *ctrl_response;
 
+    ctrl_response_payload = (char *) malloc(DATA_PAYLOAD);
+    memcpy(ctrl_response_payload, penultimate_packet, DATA_PAYLOAD);
+
+    ctrl_response_header = create_response_header(sock_index, 8, 0, DATA_PAYLOAD);
+
+    response_len = CONTROL_HEADER_SIZE + DATA_PAYLOAD;
+    ctrl_response = (char *) malloc(response_len);
+    /* Copy Header */
+    memcpy(ctrl_response, ctrl_response_header, CONTROL_HEADER_SIZE);
+    /* Copy Payload */
+    memcpy(ctrl_response + CONTROL_HEADER_SIZE, ctrl_response_payload, DATA_PAYLOAD);
+
+    sendALL(sock_index, ctrl_response, response_len);
 }
 
 //void update_routing_table(int sock_index) {
@@ -787,6 +964,42 @@ char *create_distance_vector() {
         offset += 2;
     }
     memcpy(buffer + ROUTING_HEADER_SIZE, payload, (size_t) update_num * ROUTING_CONTENT_SIZE);
+
+    return buffer;
+}
+
+char *create_data_packet(uint32_t dest_ip, uint8_t transfer_id, uint8_t ttl, uint16_t seq_num, int fin, char *payload) {
+    char *buffer;
+    buffer = (char *) malloc(sizeof(char) * (DATA_PAYLOAD + 12));
+    bzero(buffer, DATA_PAYLOAD + 12);
+
+    int offset = 0;
+    uint32_t ip = htonl(dest_ip);
+    uint16_t
+            num = htons(seq_num);
+
+    memcpy(buffer + offset, &ip, sizeof(ip));
+    offset += 4;
+
+    memcpy(buffer + offset, &transfer_id, sizeof(transfer_id));
+    offset += 1;
+
+    memcpy(buffer + offset, &ttl, sizeof(ttl));
+    offset += 1;
+
+    memcpy(buffer + offset, &num, sizeof(num));
+    offset += 2;
+
+    uint32_t fin_padding;
+    if (fin == 1) {
+        fin_padding = LAST_DATA_PACKET;
+    } else {
+        fin_padding = NOT_LAST_PACKET;
+    }
+    memcpy(buffer + offset, &fin_padding, sizeof(fin_padding));
+    offset += 4;
+
+    memcpy(buffer + offset, payload, DATA_PAYLOAD);
 
     return buffer;
 }

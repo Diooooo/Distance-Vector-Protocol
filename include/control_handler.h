@@ -11,6 +11,11 @@
 #include <vector>
 #include <sys/time.h>
 
+struct Remote_DV {
+    uint16_t dest_id;
+    uint16_t cost;
+};
+
 struct Routing {
     uint16_t dest_id;
     uint16_t dest_route_port;
@@ -18,6 +23,8 @@ struct Routing {
     uint16_t dest_cost;
     uint32_t dest_ip;
     uint16_t next_hop_id;
+    uint16_t path_cost;
+    std::vector<Remote_DV> remote_dv;
 };
 
 struct Timeout {
@@ -33,7 +40,7 @@ struct Route_Neighbor {
     uint16_t port;
 };
 
-struct Transfer_File{
+struct Transfer_File {
     uint8_t transfer_id;
     uint8_t ttl;
     std::vector<uint16_t> sequence;
@@ -89,6 +96,6 @@ void send_dv();
 
 char *create_distance_vector();
 
-char *create_data_packet(uint32_t dest_ip, uint8_t transfer_id, uint8_t ttl, uint16_t seq_num, int fin, char* payload);
+char *create_data_packet(uint32_t dest_ip, uint8_t transfer_id, uint8_t ttl, uint16_t seq_num, int fin, char *payload);
 
 #endif //BILINSHI_CONTROL_HANDLER_H

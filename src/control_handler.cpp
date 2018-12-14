@@ -339,6 +339,7 @@ void init(int sock_index, char *payload) {
         routing_content.dest_data_port = data_port;
         routing_content.dest_cost = cost;
         routing_content.dest_ip = router_ip;
+        routing_content.path_cost = routing_content.dest_cost;
         table.push_back(routing_content);
 //        bzero(init_payload, INIT_PAYLOAD_SIZE);
 
@@ -851,8 +852,11 @@ void update_routing_table(int sock_index) {
             return;
         }
 
+        table[received_router_pos].remote_dv.clear();
         uint32_t remote_router_ip;
         uint16_t remote_router_port, remote_router_id, cost;
+        struct Remote_DV dv;
+
         /* read payload and update routing table */
         for (int i = 0; i < update_num; i++) {
             memcpy(&remote_router_ip, payload + offset, sizeof(remote_router_ip));
@@ -871,17 +875,60 @@ void update_routing_table(int sock_index) {
             cost = ntohs(cost);
             offset += 2;
 
-            if (cost == INF) { // if cost is infinity, there is no need to update anything
+//            if (cost == INF) { // if cost is infinity, there is no need to update anything
+//                if(remote_router_id == my_id){
+//                    table[received_router_pos].dest_cost = INF;
+//                }else{
+//                    continue;
+//                }
+//            }
+//            for (int j = 0; j < table.size(); j++) {
+//                /* D_x(y) = min(d_x(v) + d_v(y)), v is this neighbor */
+//                if (table[j].dest_id == remote_router_id) {
+//                    if (table[i].dest_cost > table[received_router_pos].dest_cost + cost) {
+//                        /* if updated, the next hop from x to y is v */
+//                        table[i].dest_cost = table[received_router_pos].dest_cost + cost;
+//                        table[i].next_hop_id = received_router_id;
+//                    }
+//                    break;
+//                }
+//            }
+
+            dv.dest_id = remote_router_id;
+            dv.cost = cost;
+            table[received_router_pos].remote_dv.push_back(dv);
+            if (remote_router_id == my_id) {
+                table[received_router_pos].dest_cost = cost;
                 continue;
             }
-            for (int j = 0; j < table.size(); j++) {
-                /* D_x(y) = min(d_x(v) + d_v(y)), v is this neighbor */
-                if (table[j].dest_id == remote_router_id) {
-                    if (table[i].dest_cost > table[received_router_pos].dest_cost + cost) {
-                        /* if updated, the next hop from x to y is v */
-                        table[i].dest_cost = table[received_router_pos].dest_cost + cost;
-                        table[i].next_hop_id = received_router_id;
+
+        }
+        for (int i = 0; i < table.size(); i++) {
+            if (table[i].dest_id == my_id) {
+                continue;
+            }
+            for (int j = 0; j < table[received_router_pos].remote_dv.size(); j++) {
+                if (table[received_router_pos].remote_dv[j].dest_id == table[i].dest_id) {
+                    /* d_v(y) */
+                    table[i].dest_cost =
+                            table[received_router_pos].dest_cost + table[received_router_pos].remote_dv[j].cost;
+                    table[i].next_hop_id = received_router_id;
+
+                    for (int k = 0; k < table.size(); k++) {
+                        if (table[k].remote_dv.empty()) {
+                            continue;
+                        }
+                        for (int l = 0; l < table[k].remote_dv.size(); l++) {
+                            if (table[k].remote_dv[l].dest_id == table[i].dest_id) {
+                                if (table[i].dest_cost > table[k].dest_cost + table[k].remote_dv[j].cost) {
+                                    table[i].dest_cost = table[k].dest_cost + table[k].remote_dv[j].cost;
+                                    table[i].next_hop_id = table[k].dest_id;
+                                }
+                                break;
+                            }
+                        }
                     }
+
                     break;
                 }
             }
